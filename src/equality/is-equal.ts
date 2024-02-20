@@ -14,10 +14,6 @@ function isFunctionEqual(a: Function, b: Function): boolean {
   return a.toString() === b.toString();
 }
 
-function isPrimitiveEqual(a: unknown, b: unknown): boolean {
-  return a === b;
-}
-
 function isArrayEqual(a: unknown[], b: unknown[], refs: unknown[]): boolean {
   if (a.length !== b.length) {
     return false;
@@ -80,14 +76,19 @@ function isObjectEqual(a: any, b: any, refs: any[]): boolean {
 }
 
 export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
+  // this catches primitives and objects that are the same in mem
   if (a === b) {
     return true;
   }
 
+  // if one is nullish and the other is not then they are not equal
+  // if both are null/undefined it will be caught above
   if (a == null || b == null) {
     return false;
   }
 
+  // prevent circular refs, if both are already in the refs array
+  // then we've seen them already
   if (refs.includes(a) && refs.includes(b)) {
     return true;
   }
@@ -101,13 +102,12 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
     return false;
   }
 
+  // this is used for checking equality against non-primitives.
+  // strings, booleans, etc would be caught in the first check so no need to
+  // check again. We know they are false and will be caught in the default
   switch (typeA) {
     case 'symbol':
       return isSymbolEqual(a as symbol, b as symbol);
-    case 'number':
-    case 'string':
-    case 'boolean':
-      return isPrimitiveEqual(a, b);
     case 'object':
       if (Array.isArray(a) && Array.isArray(b)) {
         return isArrayEqual(a, b, refs);

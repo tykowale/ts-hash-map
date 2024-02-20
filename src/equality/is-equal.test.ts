@@ -1,28 +1,72 @@
 import { isEqual } from './is-equal';
 
 describe('isEqual', () => {
-  describe('primitives', () => {
-    it('returns true for equal primitives', () => {
-      expect(isEqual(5, 5)).toEqual(true);
-      expect(isEqual('hello', 'hello')).toEqual(true);
-      expect(isEqual(true, true)).toEqual(true);
-    });
-
-    it('returns false for different primitives', () => {
-      expect(isEqual(5, 10)).toEqual(false);
-      expect(isEqual('hello', 'world')).toEqual(false);
-      expect(isEqual(true, false)).toEqual(false);
+  describe('Primitive equality tests', () => {
+    it.each`
+    a             | b               | expected
+    ${42}         | ${42}           | ${true}
+    ${0}          | ${0}            | ${true}
+    ${-1}         | ${-1}           | ${true}
+    ${3.14}       | ${3.14}         | ${true}
+    ${'hello'}    | ${'hello'}      | ${true}
+    ${'world'}    | ${'world'}      | ${true}
+    ${''}         | ${''}           | ${true}
+    ${true}       | ${true}         | ${true}
+    ${false}      | ${false}        | ${true}
+    ${null}       | ${null}         | ${true}
+    ${undefined}  | ${undefined}    | ${true}
+    ${42}         | ${43}           | ${false}
+    ${-1}         | ${1}            | ${false}
+    ${3.14}       | ${3.14159}      | ${false}
+    ${'hello'}    | ${'world'}      | ${false}
+    ${'hello'}    | ${'HELLO'}      | ${false}
+    ${true}       | ${false}        | ${false}
+    ${false}      | ${true}         | ${false}
+    ${42}         | ${'42'}         | ${false}
+    ${'hello'}    | ${true}         | ${false}
+    ${null}       | ${undefined}    | ${false}
+    ${null}       | ${0}            | ${false}
+    ${null}       | ${''}           | ${false}
+    ${undefined}  | ${false}        | ${false}
+    ${BigInt(42)} | ${BigInt(42)}   | ${true}
+    ${BigInt(0)}  | ${BigInt(0)}    | ${true}
+    ${BigInt(-1)} | ${BigInt(-1)}   | ${true}
+    ${BigInt(42)} | ${BigInt(43)}   | ${false}
+    ${BigInt(-1)} | ${BigInt(1)}    | ${false}
+  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
     });
   });
 
-  it('returns true for equal arrays', () => {
-    expect(isEqual([1, 2, 3], [1, 2, 3])).toEqual(true);
-    expect(isEqual(['a', 'b', 'c'], ['a', 'b', 'c'])).toEqual(true);
+  describe('Symbol equality tests', () => {
+    it.each`
+    a                 | b                 | expected
+    ${Symbol('a')}    | ${Symbol('a')}    | ${false}
+    ${Symbol.for('b')}    | ${Symbol.for('b')}    | ${true}
+    ${Symbol()}       | ${Symbol()}       | ${false} 
+  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
-
-  it('returns false for different arrays', () => {
-    expect(isEqual([1, 2, 3], [1, 2, 4])).toEqual(false);
-    expect(isEqual(['a', 'b', 'c'], ['a', 'b'])).toEqual(false);
+  describe('Array equality tests', () => {
+    it.each`
+    a                                     | b                                     | expected
+    ${[]}                                 | ${[]}                                 | ${true}
+    ${[1, 2, 3]}                          | ${[1, 2, 3]}                          | ${true}
+    ${['a', 'b', 'c']}                    | ${['a', 'b', 'c']}                    | ${true}
+    ${[1, 2, 3]}                          | ${[3, 2, 1]}                          | ${false}
+    ${[1, 2, 3]}                          | ${[1, 2]}                             | ${false}
+    ${[1, 2, 3]}                          | ${[1, 2, 3, 4]}                       | ${false}
+    ${[1, 'hello', true]}                 | ${[1, 'hello', true]}                 | ${true}
+    ${[{ a: 1 }, { b: 2 }]}               | ${[{ a: 1 }, { b: 2 }]}               | ${true}
+    ${[{ a: 1 }, { b: 2 }]}               | ${[{ b: 2 }, { a: 1 }]}               | ${false} // Order matters for objects inside arrays
+    ${[{ a: 1, b: [1, 2, 3] }]}           | ${[{ a: 1, b: [1, 2, 3] }]}           | ${true}
+    ${[{ a: 1, b: [1, 2, 3] }]}           | ${[{ a: 1, b: [3, 2, 1] }]}           | ${false}
+    ${[{ a: 1, b: { c: 'hello' } }]}      | ${[{ a: 1, b: { c: 'hello' } }]}      | ${true}
+    ${[{ a: 1, b: { c: 'hello' } }]}      | ${[{ a: 1, b: { c: 'world' } }]}      | ${false}
+  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 
   it('returns true for equal objects', () => {
