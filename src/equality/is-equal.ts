@@ -3,7 +3,7 @@ function isSymbolEqual(a: symbol, b: symbol): boolean {
 }
 
 function isDateEqual(a: Date, b: Date): boolean {
-  return +a === +b || (isNaN(+a) && isNaN(+b));
+  return a.getTime() === b.getTime();
 }
 
 function isRegExpEqual(a: RegExp, b: RegExp): boolean {
@@ -31,6 +31,11 @@ function isArrayEqual(a: unknown[], b: unknown[], refs: unknown[]): boolean {
   return true;
 }
 
+// map and set equality are admitted a bit busted. Right now if you have a map with key
+// { id : 1 } and pass that as a literal it will fail. The goal of creating
+// this entire package is to be able to overcome that short coming so while
+// this will fail for a native map and set the hashmap and hashset being created
+// in this package will work as expected
 function isMapEqual(a: Map<any, unknown>, b: Map<any, unknown>, refs: unknown[]): boolean {
   if (a.size !== b.size) {
     return false;
@@ -108,6 +113,8 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
   switch (typeA) {
     case 'symbol':
       return isSymbolEqual(a as symbol, b as symbol);
+    case 'function':
+      return isFunctionEqual(a as Function, b as Function);
     case 'object':
       if (Array.isArray(a) && Array.isArray(b)) {
         return isArrayEqual(a, b, refs);
@@ -115,8 +122,6 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
         return isDateEqual(a, b);
       } else if (a instanceof RegExp && b instanceof RegExp) {
         return isRegExpEqual(a, b);
-      } else if (a instanceof Function && b instanceof Function) {
-        return isFunctionEqual(a, b);
       } else if (a instanceof Map && b instanceof Map) {
         return isMapEqual(a, b, refs);
       } else if (a instanceof Set && b instanceof Set) {

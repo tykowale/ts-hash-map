@@ -33,7 +33,7 @@ describe('isEqual', () => {
     ${BigInt(-1)} | ${BigInt(-1)}   | ${true}
     ${BigInt(42)} | ${BigInt(43)}   | ${false}
     ${BigInt(-1)} | ${BigInt(1)}    | ${false}
-  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
       expect(isEqual(a, b)).toEqual(expected);
     });
   });
@@ -44,7 +44,7 @@ describe('isEqual', () => {
     ${Symbol('a')}    | ${Symbol('a')}    | ${false}
     ${Symbol.for('b')}    | ${Symbol.for('b')}    | ${true}
     ${Symbol()}       | ${Symbol()}       | ${false} 
-  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
       expect(isEqual(a, b)).toEqual(expected);
     });
   });
@@ -64,43 +64,87 @@ describe('isEqual', () => {
     ${[{ a: 1, b: [1, 2, 3] }]}           | ${[{ a: 1, b: [3, 2, 1] }]}           | ${false}
     ${[{ a: 1, b: { c: 'hello' } }]}      | ${[{ a: 1, b: { c: 'hello' } }]}      | ${true}
     ${[{ a: 1, b: { c: 'hello' } }]}      | ${[{ a: 1, b: { c: 'world' } }]}      | ${false}
-  `('should return $expected for ($a, $b)', ({ a, b, expected }) => {
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
       expect(isEqual(a, b)).toEqual(expected);
     });
   });
 
-  it('returns true for equal objects', () => {
-    expect(isEqual({ a: 1, b: 2 }, { a: 1, b: 2 })).toEqual(true);
-    // order shouldn't matter
-    expect(isEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toEqual(true);
-    expect(isEqual({ x: 'hello', y: 'world' }, { x: 'hello', y: 'world' })).toEqual(true);
+  describe('Date equality tests', () => {
+    it.each`
+    a                     | b                     | expected
+    ${new Date('2024-01-01')} | ${new Date('2024-01-01')} | ${true}
+    ${new Date('2024-01-01')} | ${new Date('2024-01-02')} | ${false}
+    ${new Date('2024-01-01')} | ${new Date('2023-01-01')} | ${false}
+    ${new Date('2024-02-01')} | ${new Date('2024-01-01')} | ${false}
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 
-  it('returns false for different objects', () => {
-    expect(isEqual({ x: 'hello', y: 'world' }, { x: 'hello', y: 'there' })).toEqual(false);
+  describe('RegExp equality tests', () => {
+    it.each`
+    a                         | b                         | expected
+    ${/^hello$/i}             | ${/^hello$/i}             | ${true}
+    ${/^hello$/i}             | ${/^world$/i}             | ${false}
+    ${/^\d+$/}                | ${/^\d+$/}                | ${true}
+    ${/^\d+$/}                | ${/^\\d+$/}               | ${false} // Different escape representation
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 
-  it('returns true for equal dates', () => {
-    const date1 = new Date('2022-01-01');
-    const date2 = new Date('2022-01-01');
-    expect(isEqual(date1, date2)).toEqual(true);
+  // these are too hard to do in each blocks and it formats poorly
+  describe('Function equality tests', () => {
+    it('returns true for two anonymous functions', () => {
+      const f1 = () => {
+      };
+      const f2 = () => {
+      };
+      expect(isEqual(f1, f2)).toEqual(true);
+    });
   });
 
-  it('returns false for different dates', () => {
-    const date1 = new Date('2022-01-01');
-    const date2 = new Date('2022-01-02');
-    expect(isEqual(date1, date2)).toEqual(false);
+  describe('Set equality tests', () => {
+    it.each`
+    a                             | b                             | expected
+    ${new Set([1, 2, 3])}         | ${new Set([1, 2, 3])}         | ${true}
+    ${new Set([1, 2, 3])}         | ${new Set([3, 2, 1])}         | ${true}
+    ${new Set(['hello', 'world'])} | ${new Set(['hello', 'world'])} | ${true}
+    ${new Set(['hello', 'world'])} | ${new Set(['world', 'hello'])} | ${true}
+    ${new Set([1, 2, 3])}         | ${new Set([1, 2])}            | ${false}
+    ${new Set([1, 2, 3])}         | ${new Set([1, 2, 3, 4])}      | ${false}
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 
-  it('returns true for equal regular expressions', () => {
-    const regex1 = /hello/i;
-    const regex2 = /hello/i;
-    expect(isEqual(regex1, regex2)).toEqual(true);
+  describe('Map equality tests', () => {
+    it.each`
+    a                                                     | b                                                     | expected
+    ${new Map([['a', 1], ['b', 2]])}                     | ${new Map([['a', 1], ['b', 2]])}                     | ${true}
+    ${new Map([['a', 1], ['b', 2]])}                     | ${new Map([['b', 2], ['a', 1]])}                     | ${true}
+    ${new Map([['a', 1], ['b', 2]])}                     | ${new Map([['a', 1]])}                               | ${false}
+    ${new Map([['a', 1], ['b', 2]])}                     | ${new Map([['a', 1], ['b', 2], ['c', 3]])}           | ${false}
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 
-  it('returns false for different regular expressions', () => {
-    const regex1 = /hello/i;
-    const regex2 = /world/i;
-    expect(isEqual(regex1, regex2)).toEqual(false);
+  describe('Object equality tests', () => {
+    it.each`
+    a                       | b                       | expected
+    ${{}}                   | ${{}}                   | ${true}
+    ${{ a: 1, b: 2 }}       | ${{ a: 1, b: 2 }}       | ${true}
+    ${{ a: 1, b: 2 }}       | ${{ b: 2, a: 1 }}       | ${true}
+    ${{ a: 1, b: 2 }}       | ${{ a: 1, b: 3 }}       | ${false}
+    ${{ a: 1, b: 2 }}       | ${{ a: 1, c: 2 }}       | ${false}
+    ${{ a: 1, b: 2 }}       | ${{ a: 1 }}             | ${false}
+    ${{ a: 1, b: [1, 2, 3] }} | ${{ a: 1, b: [1, 2, 3] }} | ${true}
+    ${{ a: 1, b: [1, 2, 3] }} | ${{ a: 1, b: [3, 2, 1] }} | ${false}
+    ${{ a: { b: 2 } }}       | ${{ a: { b: 2 } }}       | ${true}
+    ${{ a: { b: 2 } }}       | ${{ a: { b: 3 } }}       | ${false}
+  `('returns $expected for ($a, $b)', ({ a, b, expected }) => {
+      expect(isEqual(a, b)).toEqual(expected);
+    });
   });
 });
