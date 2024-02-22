@@ -7,7 +7,6 @@ export class HashMap<K, V> implements Map<K, V> {
   size: number;
 
   private DEFAULT_INITIAL_CAPACITY = 16;
-  private DEFAULT_LOAD_FACTOR = 0.75;
 
   private readonly capacity: number;
   private table: Array<Node<K, V>>;
@@ -69,6 +68,7 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
+    throw new Error('Not Implemented');
   }
 
   values(): IterableIterator<V> {
