@@ -21,7 +21,8 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   clear(): void {
-    throw new Error('Not Implemented');
+    this.table = new Array(this.capacity);
+    this.size = 0;
   }
 
   delete(key: K): boolean {
