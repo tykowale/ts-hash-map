@@ -97,7 +97,35 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
-    throw new Error('Not Implemented');
+    let index = 0;
+    let node: Node<K, V> | undefined;
+    const tab = this.table;
+    const cap = this.capacity;
+
+    // @ts-expect-error shh
+    return {
+      next(): IteratorResult<[K, V]> {
+        while (index < cap) {
+          if (node == null) {
+            node = tab[index];
+          } else {
+            node = node.next;
+          }
+
+          if (node != null) {
+            return {
+              value: [node.key, node.value],
+              done: false,
+            };
+          }
+
+          node = undefined;
+          index++;
+        }
+
+        return { value: undefined, done: true } as IteratorResult<[K, V]>;
+      },
+    };
   }
 
   entries(): IterableIterator<[K, V]> {

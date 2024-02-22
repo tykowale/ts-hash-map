@@ -73,6 +73,20 @@ describe('HashMap', () => {
         expect(hashMap.size).toEqual(0);
         expect(hashMap.has(1)).toBeFalsy();
       });
+
+      it('iterates over all entries in the hashmap', () => {
+        hashMap.set(1, 'one');
+        hashMap.set(2, 'two');
+        hashMap.set(3, 'three');
+
+        const res = [];
+
+        for (const e of hashMap) {
+          res.push(e);
+        }
+
+        expect(res).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
+      });
     });
   });
 
@@ -163,6 +177,21 @@ describe('HashMap', () => {
       hashMap.clear();
       expect(hashMap.size).toEqual(0);
       expect(hashMap.has({ id: 1 })).toBeFalsy();
+    });
+
+    it('iterates over all entries in the hashmap', () => {
+      const key1 = { id: 1 };
+      const key2 = { id: 2 };
+      hashMap.set(key1, 'value1');
+      hashMap.set(key2, 'value2');
+
+      const res = [];
+
+      for (const e of hashMap) {
+        res.push(e);
+      }
+
+      expect(res.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
     });
   });
 });
