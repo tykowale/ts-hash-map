@@ -29,22 +29,19 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    const index = this.hash(key);
-    let node: Node<K, V> | undefined = this.table[index];
+    const node = this.getNode(key);
 
-    while (node != null) {
-      if (isEqual(key, node.key)) {
-        return node.value;
-      }
-
-      node = node.next;
+    if (node == null) {
+      return undefined;
     }
 
-    return undefined;
+    return node.value;
   }
 
   has(key: K): boolean {
-    throw new Error('Not Implemented');
+    const node = this.getNode(key);
+
+    return node != null;
   }
 
   set(key: K, value: V): this {
@@ -92,5 +89,20 @@ export class HashMap<K, V> implements Map<K, V> {
 
   private hash(key: K): number {
     return getHashCode(key) % this.capacity;
+  }
+
+  private getNode(key: K): Node<K, V> | undefined {
+    const index = this.hash(key);
+    let node: Node<K, V> | undefined = this.table[index];
+
+    while (node != null) {
+      if (isEqual(key, node.key)) {
+        return node;
+      }
+
+      node = node.next;
+    }
+
+    return undefined;
   }
 }

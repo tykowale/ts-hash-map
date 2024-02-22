@@ -27,6 +27,16 @@ describe('HashMap', () => {
       it('returns undefined for non-existing keys', () => {
         expect(hashMap.get(1)).toBeUndefined();
       });
+
+      it('returns true when a key exists', () => {
+        hashMap.set(1, 'value1');
+
+        expect(hashMap.has(1)).toBeTruthy();
+      });
+
+      it('returns false when a key does not exist', () => {
+        expect(hashMap.has(1)).toBeFalsy();
+      });
     });
   });
 
@@ -61,6 +71,20 @@ describe('HashMap', () => {
     it('returns undefined for non-existing keys for object keys', () => {
       const nonExistingKey = { id: 1 };
       expect(hashMap.get(nonExistingKey)).toBeUndefined();
+    });
+
+    it('returns true when a key exists', () => {
+      const key = { id: 1 };
+
+      hashMap.set(key, 'value1');
+
+      expect(hashMap.has(key)).toBeTruthy();
+    });
+
+    it('returns false when a key does not exist', () => {
+      const key = { id: 1 };
+
+      expect(hashMap.has(key)).toBeFalsy();
     });
   });
 });
