@@ -37,6 +37,31 @@ describe('HashMap', () => {
       it('returns false when a key does not exist', () => {
         expect(hashMap.has(1)).toBeFalsy();
       });
+
+      it('deletes existing key and return true', () => {
+        hashMap.set(1, 'value1');
+        expect(hashMap.delete(1)).toBe(true);
+        expect(hashMap.has(1)).toBe(false);
+      });
+
+      it('returns false if key does not exist', () => {
+        expect(hashMap.delete(1)).toBe(false);
+      });
+
+      it('decreases size when deleting existing key', () => {
+        hashMap.set(1, 'value1');
+        hashMap.set(2, 'value2');
+        hashMap.delete(1);
+
+        expect(hashMap.size).toBe(1);
+      });
+
+      it('does not decrease size when key does not exist', () => {
+        hashMap.set(1, 'value1');
+        hashMap.delete(2);
+
+        expect(hashMap.size).toBe(1);
+      });
     });
   });
 
@@ -85,6 +110,37 @@ describe('HashMap', () => {
       const key = { id: 1 };
 
       expect(hashMap.has(key)).toBeFalsy();
+    });
+
+    it('deletes existing key and return true', () => {
+      const key = { id: 1 };
+      hashMap.set(key, 'value1');
+      expect(hashMap.delete(key)).toBe(true);
+      expect(hashMap.has(key)).toBe(false);
+    });
+
+    it('returns false if key does not exist', () => {
+      const key = { id: 1 };
+      expect(hashMap.delete(key)).toBe(false);
+    });
+
+    it('decreases size when deleting existing key', () => {
+      const key1 = { id: 1 };
+      const key2 = { id: 2 };
+      hashMap.set(key1, 'value1');
+      hashMap.set(key2, 'value2');
+      hashMap.delete(key1);
+
+      expect(hashMap.size).toBe(1);
+    });
+
+    it('does not decrease size when key does not exist', () => {
+      const key1 = { id: 1 };
+      const key2 = { id: 2 };
+      hashMap.set(key1, 'value1');
+      hashMap.delete(key2);
+
+      expect(hashMap.size).toBe(1);
     });
   });
 });

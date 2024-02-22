@@ -9,10 +9,11 @@ export class HashMap<K, V> implements Map<K, V> {
   private DEFAULT_INITIAL_CAPACITY = 16;
 
   private readonly capacity: number;
-  private table: Array<Node<K, V>>;
+  private table: Array<Node<K, V> | undefined>;
 
   constructor() {
     this.capacity = this.DEFAULT_INITIAL_CAPACITY;
+    this.size = 0;
 
     // later we'll need to do an Object.seal on this
     // but for now allow it to be any sized
@@ -24,7 +25,26 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   delete(key: K): boolean {
-    throw new Error('Not Implemented');
+    const index = this.hash(key);
+    let currNode: Node<K, V> | undefined = this.table[index];
+    let prevNode: Node<K, V> | undefined = undefined;
+
+    while (currNode != null) {
+      if (isEqual(currNode.key, key)) {
+        if (prevNode == null) {
+          this.table[index] = currNode.next;
+        } else {
+          prevNode.next = currNode.next;
+        }
+        this.size--;
+        return true;
+      }
+
+      prevNode = currNode;
+      currNode = currNode.next;
+    }
+
+    return false;
   }
 
   get(key: K): V | undefined {
