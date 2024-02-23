@@ -1,6 +1,7 @@
-import { Node } from 'src/basic-node';
-import { getHashCode } from 'src/hash';
-import { isEqual } from 'src/is-equal';
+import { Node } from './basic-node';
+import { getHashCode } from './hash';
+import { isEqual } from './is-equal';
+import { HashMapIterable } from './hash-map-iterable';
 
 export class HashMap<K, V> implements Map<K, V> {
   readonly [Symbol.toStringTag]: string;
@@ -97,35 +98,7 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
-    let index = 0;
-    let node: Node<K, V> | undefined;
-    const tab = this.table;
-    const cap = this.capacity;
-
-    // @ts-expect-error shh
-    return {
-      next(): IteratorResult<[K, V]> {
-        while (index < cap) {
-          if (node == null) {
-            node = tab[index];
-          } else {
-            node = node.next;
-          }
-
-          if (node != null) {
-            return {
-              value: [node.key, node.value],
-              done: false,
-            };
-          }
-
-          node = undefined;
-          index++;
-        }
-
-        return { value: undefined, done: true } as IteratorResult<[K, V]>;
-      },
-    };
+    return new HashMapIterable(this.table, this.capacity);
   }
 
   entries(): IterableIterator<[K, V]> {

@@ -86,6 +86,11 @@ describe('HashMap', () => {
         }
 
         expect(res).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
+
+        const iterator = hashMap[Symbol.iterator]();
+        const res2 = Array.from(iterator);
+
+        expect(res2).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
       });
     });
   });
@@ -192,6 +197,11 @@ describe('HashMap', () => {
       }
 
       expect(res.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
+
+      const iterator = hashMap[Symbol.iterator]();
+      const res2 = Array.from(iterator);
+
+      expect(res2.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
     });
   });
 });
