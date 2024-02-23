@@ -2,6 +2,8 @@ import { Node } from './basic-node';
 import { getHashCode } from './hash';
 import { isEqual } from './is-equal';
 import { HashMapIterable } from './hash-map-iterable';
+import { HashMapKeysIterable } from 'src/hash-map-keys-iterable';
+import { HashMapValuesIterable } from 'src/hash-map-values-iterable';
 
 export class HashMap<K, V> implements Map<K, V> {
   readonly [Symbol.toStringTag]: string;
@@ -19,34 +21,6 @@ export class HashMap<K, V> implements Map<K, V> {
     // later we'll need to do an Object.seal on this
     // but for now allow it to be any sized
     this.table = new Array(this.capacity);
-  }
-
-  clear(): void {
-    this.table = new Array(this.capacity);
-    this.size = 0;
-  }
-
-  delete(key: K): boolean {
-    const index = this.hash(key);
-    let currNode: Node<K, V> | undefined = this.table[index];
-    let prevNode: Node<K, V> | undefined = undefined;
-
-    while (currNode != null) {
-      if (isEqual(currNode.key, key)) {
-        if (prevNode == null) {
-          this.table[index] = currNode.next;
-        } else {
-          prevNode.next = currNode.next;
-        }
-        this.size--;
-        return true;
-      }
-
-      prevNode = currNode;
-      currNode = currNode.next;
-    }
-
-    return false;
   }
 
   get(key: K): V | undefined {
@@ -89,6 +63,35 @@ export class HashMap<K, V> implements Map<K, V> {
     return this;
   }
 
+  clear(): void {
+    this.table = new Array(this.capacity);
+    this.size = 0;
+  }
+
+  delete(key: K): boolean {
+    const index = this.hash(key);
+    let currNode: Node<K, V> | undefined = this.table[index];
+    let prevNode: Node<K, V> | undefined = undefined;
+
+    while (currNode != null) {
+      if (isEqual(currNode.key, key)) {
+        if (prevNode == null) {
+          this.table[index] = currNode.next;
+        } else {
+          prevNode.next = currNode.next;
+        }
+        this.size--;
+        return true;
+      }
+
+      prevNode = currNode;
+      currNode = currNode.next;
+    }
+
+    return false;
+  }
+
+
   forEach(callBackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
     for (const [key, value] of this) {
       callBackFn.call(thisArg, value, key, this);
@@ -96,7 +99,7 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   values(): IterableIterator<V> {
-    throw new Error('Not Implemented');
+    return new HashMapValuesIterable(this.table, this.capacity);
   }
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
@@ -104,11 +107,11 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   entries(): IterableIterator<[K, V]> {
-    throw new Error('Not Implemented');
+    return new HashMapIterable(this.table, this.capacity);
   }
 
   keys(): IterableIterator<K> {
-    throw new Error('Not Implemented');
+    return new HashMapKeysIterable(this.table, this.capacity);
   }
 
   private hash(key: K): number {
