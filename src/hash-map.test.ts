@@ -1,5 +1,4 @@
 import { HashMap } from './hash-map';
-import { isEqual } from 'src/is-equal';
 
 describe('HashMap', () => {
   describe('with primitive keys', () => {
@@ -110,6 +109,19 @@ describe('HashMap', () => {
 
       expect(keys).toEqual([1, 2, 3]);
       expect(values).toEqual(['one', 'two', 'three']);
+    });
+
+    it('works with a large number of entries', () => {
+      const size = 1000;
+      const hashMap = new HashMap<number, string>();
+
+      for (let i = 0; i < size; i++) {
+        hashMap.set(i, `value_${i}`);
+      }
+
+      for (let i = 0; i < size; i++) {
+        expect(hashMap.get(i)).toBe(`value_${i}`);
+      }
     });
   });
 
@@ -231,7 +243,7 @@ describe('HashMap', () => {
       const keys: { id: number }[] = [];
       const values: string[] = [];
 
-      hashMap.forEach((value, key: {id: number}) => {
+      hashMap.forEach((value, key: { id: number }) => {
         keys.push(key);
         values.push(value);
       });

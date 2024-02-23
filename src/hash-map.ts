@@ -10,12 +10,15 @@ export class HashMap<K, V> implements Map<K, V> {
   size: number;
 
   private DEFAULT_INITIAL_CAPACITY = 16;
+  private DEFAULT_LOAD_FACTOR = 0.75;
 
-  private readonly capacity: number;
+  private capacity: number;
+  private loadFactor: number;
   private table: Array<Node<K, V> | undefined>;
 
   constructor() {
     this.capacity = this.DEFAULT_INITIAL_CAPACITY;
+    this.loadFactor = this.DEFAULT_LOAD_FACTOR;
     this.size = 0;
 
     // later we'll need to do an Object.seal on this
@@ -58,7 +61,9 @@ export class HashMap<K, V> implements Map<K, V> {
     this.table[index] = newNode;
     this.size++;
 
-    // come back later to do resizing
+    if (this.size > (this.capacity * this.loadFactor)) {
+      this.resize();
+    }
 
     return this;
   }
@@ -131,5 +136,26 @@ export class HashMap<K, V> implements Map<K, V> {
     }
 
     return undefined;
+  }
+
+  private resize() {
+    this.capacity = this.capacity * 2;
+    const newTable = new Array<Node<K, V> | undefined>(this.capacity);
+
+    for (let i = 0; i < this.capacity; i++) {
+      let curr = this.table[i];
+
+      while (curr != null) {
+        const next = curr.next;
+        const newIndex = this.hash(curr.key);
+
+        curr.next = newTable[newIndex];
+        newTable[newIndex] = curr;
+
+        curr = next;
+      }
+    }
+
+    this.table = newTable;
   }
 }
