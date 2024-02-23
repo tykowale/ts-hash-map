@@ -5,6 +5,12 @@ import { HashMapIterable } from './hash-map-iterable';
 import { HashMapKeysIterable } from 'src/hash-map-keys-iterable';
 import { HashMapValuesIterable } from 'src/hash-map-values-iterable';
 
+export type HashMapOptions = {
+  // must always be a factor of 2
+  capacity?: number,
+  loadFactor?: number;
+};
+
 export class HashMap<K, V> implements Map<K, V> {
   readonly [Symbol.toStringTag]: string;
   size: number;
@@ -16,14 +22,39 @@ export class HashMap<K, V> implements Map<K, V> {
   private loadFactor: number;
   private table: Array<Node<K, V> | undefined>;
 
-  constructor() {
-    this.capacity = this.DEFAULT_INITIAL_CAPACITY;
-    this.loadFactor = this.DEFAULT_LOAD_FACTOR;
-    this.size = 0;
+  constructor();
+  constructor(initialValues: Array<[K, V]>);
+  constructor(options: HashMapOptions);
+  constructor(initialValues: Array<[K, V]>, options: HashMapOptions);
+  constructor(
+    initialValuesOrOptions?: Array<[K, V]> | HashMapOptions,
+    options?: HashMapOptions,
+  ) {
+    let initVals: Array<[K, V]> | undefined;
+    const opts: Partial<HashMapOptions> = {};
 
-    // later we'll need to do an Object.seal on this
-    // but for now allow it to be any sized
+    if (Array.isArray(initialValuesOrOptions)) {
+      initVals = initialValuesOrOptions;
+      Object.assign(opts, options);
+    } else if (typeof initialValuesOrOptions === 'object') {
+      Object.assign(opts, initialValuesOrOptions);
+    }
+
+    if (opts.capacity != null) {
+      // round up to the nearest power of 2 if they pass in something else
+      opts.capacity = Math.pow(2, Math.ceil(Math.log2(opts.capacity)));
+    }
+
+    this.capacity = opts.capacity ?? this.DEFAULT_INITIAL_CAPACITY;
+    this.loadFactor = opts.loadFactor ?? this.DEFAULT_LOAD_FACTOR;
+    this.size = 0;
     this.table = new Array(this.capacity);
+
+    if (initVals !== undefined) {
+      for (const [key, value] of initVals) {
+        this.set(key, value);
+      }
+    }
   }
 
   get(key: K): V | undefined {

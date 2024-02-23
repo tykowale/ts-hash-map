@@ -1,6 +1,76 @@
 import { HashMap } from './hash-map';
 
 describe('HashMap', () => {
+  describe('constructor', () => {
+
+    it('initializes with default values if no arguments are provided', () => {
+      const hashMap = new HashMap();
+      expect(hashMap.size).toEqual(0);
+      // @ts-expect-error ignore private
+      expect(hashMap.capacity).toEqual(hashMap.DEFAULT_INITIAL_CAPACITY);
+      // @ts-expect-error ignore private
+      expect(hashMap.loadFactor).toEqual(hashMap.DEFAULT_LOAD_FACTOR);
+    });
+
+    it('initializes with initial values if an array of initial values is provided', () => {
+      const initialValues: [string, string][] = [
+        ['key1', 'value1'],
+        ['key2', 'value2'],
+      ];
+      const hashMap = new HashMap(initialValues);
+
+      expect(hashMap.size).toEqual(initialValues.length);
+      // @ts-expect-error ignore private
+      expect(hashMap.capacity).toBeGreaterThanOrEqual(initialValues.length);
+      // @ts-expect-error ignore private
+      expect(hashMap.loadFactor).toEqual(hashMap.DEFAULT_LOAD_FACTOR);
+
+      for (const [key, value] of initialValues) {
+        expect(hashMap.get(key)).toEqual(value);
+      }
+    });
+
+    it('initializes with options if an options object is provided', () => {
+      const options = { capacity: 32, loadFactor: 0.8 };
+      const hashMap = new HashMap(options);
+
+      expect(hashMap.size).toEqual(0);
+      // @ts-expect-error ignore private
+      expect(hashMap.capacity).toEqual(options.capacity);
+      // @ts-expect-error ignore private
+      expect(hashMap.loadFactor).toEqual(options.loadFactor);
+    });
+
+    it('overrides options with values provided in both initialValues and options', () => {
+      const initialValues: [string, string][] = [
+        ['key1', 'value1'],
+        ['key2', 'value2'],
+      ];
+
+      const options = { capacity: 20, loadFactor: 0.8 };
+      const hashMap = new HashMap(initialValues, options);
+      expect(hashMap.size).toEqual(initialValues.length);
+      // @ts-expect-error ignore private
+      expect(hashMap.capacity).toBeGreaterThanOrEqual(initialValues.length);
+      // @ts-expect-error ignore private
+      expect(hashMap.loadFactor).toEqual(options.loadFactor);
+      for (const [key, value] of initialValues) {
+        expect(hashMap.get(key)).toEqual(value);
+      }
+    });
+
+    it('forces capacity to be a power of 2', () => {
+      const options = { capacity: 36, loadFactor: 0.8 };
+      const hashMap = new HashMap(options);
+
+      expect(hashMap.size).toEqual(0);
+      // @ts-expect-error ignore private
+      expect(hashMap.capacity).toEqual(64);
+      // @ts-expect-error ignore private
+      expect(hashMap.loadFactor).toEqual(options.loadFactor);
+    })
+  });
+
   describe('with primitive keys', () => {
     let hashMap: HashMap<number, string>;
 
@@ -94,7 +164,7 @@ describe('HashMap', () => {
       });
     });
 
-    it('should call the callback function for each key-value pair in the hashmap', () => {
+    it('calls the callback function for each key-value pair in the hashmap', () => {
       hashMap.set(1, 'one');
       hashMap.set(2, 'two');
       hashMap.set(3, 'three');
@@ -120,7 +190,7 @@ describe('HashMap', () => {
       }
 
       for (let i = 0; i < size; i++) {
-        expect(hashMap.get(i)).toBe(`value_${i}`);
+        expect(hashMap.get(i)).toEqual(`value_${i}`);
       }
     });
   });
@@ -234,7 +304,7 @@ describe('HashMap', () => {
       expect(res2.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
     });
 
-    it('should call the callback function for each key-value pair in the hashmap', () => {
+    it('calls the callback function for each key-value pair in the hashmap', () => {
       const key1 = { id: 1 };
       const key2 = { id: 2 };
       hashMap.set(key1, 'value1');
