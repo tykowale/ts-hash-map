@@ -2,12 +2,24 @@ import { Node } from './basic-node';
 import { getHashCode } from './hash';
 import { isEqual } from './is-equal';
 import { HashMapIterable } from './hash-map-iterable';
-import { HashMapKeysIterable } from 'src/hash-map-keys-iterable';
-import { HashMapValuesIterable } from 'src/hash-map-values-iterable';
+import { HashMapKeysIterable } from './hash-map-keys-iterable';
+import { HashMapValuesIterable } from './hash-map-values-iterable';
 
+/**
+ * Advanced options for constructing your hashmap.
+ */
 export type HashMapOptions = {
-  // must always be a factor of 2
+  /**
+   * The initial capacity of the hashmap.
+   * Must always be a factor of 2.
+   * If not provided, the default initial capacity (16) is used.
+   */
   capacity?: number,
+  /**
+   * The load factor of the hashmap.
+   * Determines when the hashmap should resize based on its size relative to its capacity.
+   * If not provided, the default load factor (0.75) is used.
+   */
   loadFactor?: number;
 };
 
@@ -22,9 +34,21 @@ export class HashMap<K, V> implements Map<K, V> {
   private loadFactor: number;
   private table: Array<Node<K, V> | undefined>;
 
+  /**
+   * Constructs a hashmap with no elements and the default options
+   */
   constructor();
+  /**
+   * Constructs a hashmap with the provided elements and the default options
+   */
   constructor(initialValues: Array<[K, V]>);
+  /**
+   * Constructs a hashmap with no elements and the provided options
+   */
   constructor(options: HashMapOptions);
+  /**
+   * Constructs a hashmap with provided elements and the provided options
+   */
   constructor(initialValues: Array<[K, V]>, options: HashMapOptions);
   constructor(
     initialValuesOrOptions?: Array<[K, V]> | HashMapOptions,

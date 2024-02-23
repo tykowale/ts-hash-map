@@ -1,4 +1,4 @@
-import { isEqual } from 'src/is-equal';
+import { isEqual } from './is-equal';
 
 describe('isEqual', () => {
   describe('Primitive equality tests', () => {

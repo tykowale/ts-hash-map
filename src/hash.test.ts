@@ -1,7 +1,7 @@
-import { getHashCode } from 'src/hash';
+import { getHashCode } from './hash';
 
 describe('getHashCode tests', () => {
-it.each`
+  it.each`
     value                     | expected
   ${null}                   | ${0}
   ${undefined}              | ${0}
