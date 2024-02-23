@@ -1,4 +1,5 @@
 import { HashMap } from './hash-map';
+import { isEqual } from 'src/is-equal';
 
 describe('HashMap', () => {
   describe('with primitive keys', () => {
@@ -92,6 +93,23 @@ describe('HashMap', () => {
 
         expect(res2).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
       });
+    });
+
+    it('should call the callback function for each key-value pair in the hashmap', () => {
+      hashMap.set(1, 'one');
+      hashMap.set(2, 'two');
+      hashMap.set(3, 'three');
+
+      const keys: number[] = [];
+      const values: string[] = [];
+
+      hashMap.forEach((value, key) => {
+        keys.push(key);
+        values.push(value);
+      });
+
+      expect(keys).toEqual([1, 2, 3]);
+      expect(values).toEqual(['one', 'two', 'three']);
     });
   });
 
@@ -202,6 +220,24 @@ describe('HashMap', () => {
       const res2 = Array.from(iterator);
 
       expect(res2.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
+    });
+
+    it('should call the callback function for each key-value pair in the hashmap', () => {
+      const key1 = { id: 1 };
+      const key2 = { id: 2 };
+      hashMap.set(key1, 'value1');
+      hashMap.set(key2, 'value2');
+
+      const keys: { id: number }[] = [];
+      const values: string[] = [];
+
+      hashMap.forEach((value, key: {id: number}) => {
+        keys.push(key);
+        values.push(value);
+      });
+
+      expect(keys).toEqual([key2, key1]);
+      expect(values).toEqual(['value2', 'value1']);
     });
   });
 });

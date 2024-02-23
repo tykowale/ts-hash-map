@@ -89,8 +89,10 @@ export class HashMap<K, V> implements Map<K, V> {
     return this;
   }
 
-  forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
-    throw new Error('Not Implemented');
+  forEach(callBackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
+    for (const [key, value] of this) {
+      callBackFn.call(thisArg, value, key, this);
+    }
   }
 
   values(): IterableIterator<V> {
