@@ -1,5 +1,5 @@
 {
-  "name": "ts-hash-map",
+  "name": "@tykowale/ts-hash-map",
   "version": "1.0.0",
   "description": "TS Hash Map",
   "main": "./dist/index.js",
