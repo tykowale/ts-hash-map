@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "jest"
+    "test": "jest",
+    "benchmark": "ts-node src/benchmark.ts"
   },
   "author": "Ty Kowalewski<tykowale@gmail.com>",
   "license": "MIT",
