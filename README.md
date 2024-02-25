@@ -8,7 +8,16 @@ established pattern to efficiently create a `Map` using deep equality.
 
 ## Table of Contents
 
+- [Installation](#installation)
 - [Usage](#usage)
+- [Benchmarks](#benchmark)
+
+## Installation
+
+To use the HashMap class in your projects, you can install it via npm:
+```bash
+npm install @tykowale/ts-hash-map
+```
 
 ## Usage
 
@@ -72,3 +81,18 @@ map.set('apple', 5);
 
 map.size; // returns 1
 ```
+
+## Benchmarks
+
+Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map. 
+
+|       Title        | Total Time (ms) | Time per Operation (ms) | Operations per Second |
+|-------------------|-----------------|-------------------------|-----------------------|
+|   'Hash Map Set'  |      5442       |      '0.0005442000'     |       '1,837,559'     |
+|   'Hash Map Get'  |      1604       |      '0.0001604000'     |       '6,234,413'     |
+| 'Hash Map Update' |      5303       |      '0.0005303000'     |       '1,885,725'     |
+| 'Hash Map Delete' |      1224       |      '0.0001224000'     |       '8,169,934'     |
+|  'Native Map Set' |      1690       |      '0.0001690000'     |       '5,917,159'     |
+|  'Native Map Get' |       18        |      '0.0000018000'     |     '555,555,555'     |
+|'Native Map Update'|      1184       |      '0.0001184000'     |       '8,445,945'     |
+|'Native Map Delete'|       96        |      '0.0000096000'     |     '104,166,666'     |

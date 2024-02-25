@@ -1,7 +1,9 @@
 import { HashMap } from './hash-map';
+import { v4 as uuidv4 } from 'uuid';
 
-const size = 1000000;
-const keys = generateRandomKeys();
+const iterations = 100000;
+const maxSize = 100;
+const keys = generateRandomKeys(maxSize);
 const results: any[] = [];
 
 function getRandomInt(min: number, max: number): number {
@@ -10,10 +12,10 @@ function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function generateRandomKeys(): number[] {
-  const keys: number[] = [];
+function generateRandomKeys(size: number): string[] {
+  const keys: string[] = [];
   for (let i = 0; i < size; i++) {
-    keys.push(getRandomInt(1, Number.MAX_SAFE_INTEGER));
+    keys.push(uuidv4());
   }
   return keys;
 }
@@ -24,8 +26,8 @@ function benchmarkOperation(title: string, operation: () => void) {
   operation();
   const endTime = new Date().getTime();
   const totalTime = endTime - startTime;
-  const fnTime = (totalTime / size).toFixed(10);
-  const operations = Math.floor(1000 / totalTime * size);
+  const fnTime = (totalTime / (iterations * keys.length)).toFixed(10);
+  const operations = Math.floor((iterations * keys.length) / (totalTime / 1000));
   results.push({
     Title: title,
     'Total Time (ms)': totalTime,
@@ -35,57 +37,103 @@ function benchmarkOperation(title: string, operation: () => void) {
 }
 
 function testHashMap(): void {
-  const hashMap = new HashMap<number, string>();
+  const hashMapSet: HashMap<string, string>[] = [];
+  const hashMapUpdate: HashMap<string, string>[] = [];
+  const hashMapDelete: HashMap<string, string>[] = [];
+
+  // Populate maps for set, update, and delete operations
+  for (let i = 0; i < iterations; i++) {
+    const mapSet = new HashMap<string, string>();
+    const mapUpdate = new HashMap<string, string>();
+    const mapDelete = new HashMap<string, string>();
+    hashMapSet.push(mapSet);
+    hashMapUpdate.push(mapUpdate);
+    hashMapDelete.push(mapDelete);
+    mapSet.set(keys[i], `value_${keys[i]}`);
+    mapUpdate.set(keys[i], `value_${keys[i]}`);
+    mapDelete.set(keys[i], `value_${keys[i]}`);
+  }
 
   benchmarkOperation('hash map set', () => {
-    keys.forEach(key => {
-      hashMap.set(key, `value_${key}`);
+    hashMapSet.forEach(map => {
+      keys.forEach(key => {
+        map.set(key, `value_${key}`);
+      });
     });
   });
 
   benchmarkOperation('hash map get', () => {
-    keys.forEach(key => {
-      hashMap.get(key);
+    hashMapSet.forEach(map => {
+      keys.forEach(key => {
+        map.get(key);
+      });
     });
   });
 
   benchmarkOperation('hash map update', () => {
-    keys.forEach(key => {
-      hashMap.set(key, `new_value_${key}`);
+    hashMapUpdate.forEach(map => {
+      keys.forEach(key => {
+        map.set(key, `new_value_${key}`);
+      });
     });
   });
 
   benchmarkOperation('hash map delete', () => {
-    keys.forEach(key => {
-      hashMap.delete(key);
+    hashMapDelete.forEach(map => {
+      keys.forEach(key => {
+        map.delete(key);
+      });
     });
   });
 }
 
 function testMap(): void {
-  const m = new Map<number, string>();
+  const mapSet: Map<string, string>[] = [];
+  const mapUpdate: Map<string, string>[] = [];
+  const mapDelete: Map<string, string>[] = [];
+
+  // Populate maps for set, update, and delete operations
+  for (let i = 0; i < iterations; i++) {
+    const mapSetInstance = new Map<string, string>();
+    const mapUpdateInstance = new Map<string, string>();
+    const mapDeleteInstance = new Map<string, string>();
+    mapSet.push(mapSetInstance);
+    mapUpdate.push(mapUpdateInstance);
+    mapDelete.push(mapDeleteInstance);
+    mapSetInstance.set(keys[i], `value_${keys[i]}`);
+    mapUpdateInstance.set(keys[i], `value_${keys[i]}`);
+    mapDeleteInstance.set(keys[i], `value_${keys[i]}`);
+  }
 
   benchmarkOperation('native map set', () => {
-    keys.forEach(key => {
-      m.set(key, `value_${key}`);
+    mapSet.forEach(map => {
+      keys.forEach(key => {
+        map.set(key, `value_${key}`);
+      });
     });
   });
 
   benchmarkOperation('native map get', () => {
-    keys.forEach(key => {
-      m.get(key);
+    mapSet.forEach(map => {
+      keys.forEach(key => {
+        map.get(key);
+      });
     });
   });
 
   benchmarkOperation('native map update', () => {
-    keys.forEach(key => {
-      m.set(key, `new_value_${key}`);
+    mapUpdate.forEach(map => {
+      keys.forEach(key => {
+        map.set(key, `new_value_${key}`);
+      });
     });
   });
 
   benchmarkOperation('native map delete', () => {
-    keys.forEach(key => {
-      m.delete(key);
+    mapDelete.forEach(map => {
+      keys.forEach(key => {
+        map.delete(key);
+      });
     });
   });
 }
