@@ -99,7 +99,7 @@ export class HashMap<K, V> implements Map<K, V> {
 
   set(key: K, value: V): this {
     const hash = getHashCode(key);
-    const index = hash % this.capacity;
+    const index = hash & (this.capacity - 1);
     let node: Node<K, V> | undefined = this.table[index];
 
     // if the key is already in the map we need to update it
@@ -174,7 +174,7 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   private hash(key: K): number {
-    return getHashCode(key) % this.capacity;
+    return getHashCode(key) & (this.capacity - 1);
   }
 
   private getNode(key: K): Node<K, V> | undefined {
@@ -193,15 +193,20 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   private resize() {
-    this.capacity = this.capacity * 2;
+    const oldCapacity = this.capacity;
+    this.capacity *= 2;
+
     const newTable = new Array<Node<K, V> | undefined>(this.capacity);
 
-    for (let i = 0; i < this.capacity; i++) {
+    for (let i = 0; i < oldCapacity; i++) {
       let curr = this.table[i];
 
       while (curr != null) {
         const next = curr.next;
-        const newIndex = curr.hash % this.capacity;
+        // cool little trick because capacity is a power of 2 we can treat capacity as a mask
+        // ie capacity = 16. Since we do minus one this makes sure everything is between
+        // [0, this.capacity - 1] so it's good for the hashmap
+        const newIndex = curr.hash & (this.capacity - 1);
 
         curr.next = newTable[newIndex];
         newTable[newIndex] = curr;
