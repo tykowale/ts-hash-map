@@ -74,7 +74,7 @@ export class HashMap<K, V> implements Map<K, V> {
     this.size = 0;
     this.table = new Array(this.capacity);
 
-    if (initVals !== undefined) {
+    if (initVals != null) {
       for (const [key, value] of initVals) {
         this.set(key, value);
       }
@@ -84,8 +84,8 @@ export class HashMap<K, V> implements Map<K, V> {
   get(key: K): V | undefined {
     const node = this.getNode(key);
 
-    if (node == null) {
-      return undefined;
+    if (node === undefined) {
+      return node;
     }
 
     return node.value;
@@ -103,7 +103,7 @@ export class HashMap<K, V> implements Map<K, V> {
     let node: Node<K, V> | undefined = this.table[index];
 
     // if the key is already in the map we need to update it
-    while (node != null) {
+    while (node !== undefined) {
       if (isEqual(node.key, key)) {
         node.value = value;
         return this;
@@ -132,13 +132,14 @@ export class HashMap<K, V> implements Map<K, V> {
     let currNode: Node<K, V> | undefined = this.table[index];
     let prevNode: Node<K, V> | undefined = undefined;
 
-    while (currNode != null) {
+    while (currNode !== undefined) {
       if (isEqual(currNode.key, key)) {
-        if (prevNode == null) {
+        if (prevNode === undefined) {
           this.table[index] = currNode.next;
         } else {
           prevNode.next = currNode.next;
         }
+
         this.size--;
         return true;
       }
@@ -181,7 +182,7 @@ export class HashMap<K, V> implements Map<K, V> {
     const index = this.hash(key);
     let node: Node<K, V> | undefined = this.table[index];
 
-    while (node != null) {
+    while (node !== undefined) {
       if (isEqual(key, node.key)) {
         return node;
       }
@@ -201,7 +202,7 @@ export class HashMap<K, V> implements Map<K, V> {
     for (let i = 0; i < oldCapacity; i++) {
       let curr = this.table[i];
 
-      while (curr != null) {
+      while (curr !== undefined) {
         const next = curr.next;
         // cool little trick because capacity is a power of 2 we can treat capacity as a mask
         // ie capacity = 16. Since we do minus one this makes sure everything is between

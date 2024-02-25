@@ -2,7 +2,7 @@ export class Node<K, V> {
   key: K;
   value: V;
   hash: number;
-  next?: Node<K, V>;
+  next?: Node<K, V> | undefined;
 
   constructor(key: K, value: V, hash: number, next?: Node<K, V>) {
     this.key = key;
