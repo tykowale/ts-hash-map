@@ -112,9 +112,7 @@ export class HashMap<K, V> implements Map<K, V> {
       node = node.next;
     }
 
-    const newNode = new Node<K, V>(key, value, hash);
-    newNode.next = this.table[index];
-    this.table[index] = newNode;
+    this.table[index] = new Node<K, V>(key, value, hash, this.table[index]);
     this.size++;
 
     if (this.size > (this.capacity * this.loadFactor)) {
