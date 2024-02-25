@@ -1,3 +1,5 @@
+type TypeOfResult = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function';
+
 function isSymbolEqual(a: symbol, b: symbol): boolean {
   return a.valueOf() === b.valueOf();
 }
@@ -66,6 +68,10 @@ function isSetEqual(a: Set<unknown>, b: Set<unknown>): boolean {
   return true;
 }
 
+function isPrimitive(t: TypeOfResult): boolean {
+  return t !== 'object' && t !== 'function' && t !== 'symbol';
+}
+
 function isObjectEqual(a: any, b: any, refs: any[]): boolean {
   if (Object.keys(a).length !== Object.keys(b).length) {
     return false;
@@ -92,6 +98,18 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
     return false;
   }
 
+  const typeA = typeof a;
+  const typeB = typeof b;
+
+  // early exit for primitives to save any additional checks
+  if (isPrimitive(typeA) || isPrimitive(typeB)) {
+    return false;
+  }
+
+  if (typeA !== typeB) {
+    return false;
+  }
+
   // prevent circular refs, if both are already in the refs array
   // then we've seen them already
   if (refs.includes(a) && refs.includes(b)) {
@@ -99,13 +117,6 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
   }
 
   refs.push(a, b);
-
-  const typeA = typeof a;
-  const typeB = typeof b;
-
-  if (typeA !== typeB) {
-    return false;
-  }
 
   // this is used for checking equality against non-primitives.
   // strings, booleans, etc would be caught in the first check so no need to
