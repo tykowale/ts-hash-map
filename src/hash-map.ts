@@ -98,7 +98,8 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   set(key: K, value: V): this {
-    const index = this.hash(key);
+    const hash = getHashCode(key);
+    const index = hash % this.capacity;
     let node: Node<K, V> | undefined = this.table[index];
 
     // if the key is already in the map we need to update it
@@ -111,7 +112,7 @@ export class HashMap<K, V> implements Map<K, V> {
       node = node.next;
     }
 
-    const newNode = new Node<K, V>(key, value);
+    const newNode = new Node<K, V>(key, value, hash);
     newNode.next = this.table[index];
     this.table[index] = newNode;
     this.size++;
@@ -202,7 +203,7 @@ export class HashMap<K, V> implements Map<K, V> {
 
       while (curr != null) {
         const next = curr.next;
-        const newIndex = this.hash(curr.key);
+        const newIndex = curr.hash % this.capacity;
 
         curr.next = newTable[newIndex];
         newTable[newIndex] = curr;
