@@ -71,42 +71,41 @@ export function getHashCode(value: unknown, refs: unknown[] = []): number {
   switch (typeof value) {
     case 'number':
       return value;
-    case 'bigint':
-      return getStringHashCode(value.toString());
     case 'boolean':
       return getBooleanHashCode(value);
     case 'string':
       return getStringHashCode(value);
+    case 'bigint':
     case 'function':
-      return getStringHashCode(value.toString());
     case 'symbol':
       return getStringHashCode(value.toString());
     default:
       break;
   }
 
-  if (typeof value === 'object') {
-    if (refs.includes(value)) {
-      return 0;
-    }
-
-    // Store current value in refs to handle circular references
-    refs.push(value);
-
-    if (Array.isArray(value)) {
-      return getArrayHashCode(value, refs);
-    } else if (value instanceof Date) {
-      return getDateHashCode(value);
-    } else if (value instanceof RegExp) {
-      return getRegExpHashCode(value);
-    } else if (value instanceof Map) {
-      return getMapHashCode(value, refs);
-    } else if (value instanceof Set) {
-      return getSetHashCode(value, refs);
-    } else {
-      return getObjectHashCode(value, refs);
-    }
+  if (typeof value !== 'object') {
+    return 0;
   }
 
-  return 0;
+  if (refs.includes(value)) {
+    return 0;
+  }
+
+  // Store current value in refs to handle circular references
+  refs.push(value);
+
+  if (Array.isArray(value)) {
+    return getArrayHashCode(value, refs);
+  } else if (value instanceof Date) {
+    return getDateHashCode(value);
+  } else if (value instanceof RegExp) {
+    return getRegExpHashCode(value);
+  } else if (value instanceof Map) {
+    return getMapHashCode(value, refs);
+  } else if (value instanceof Set) {
+    return getSetHashCode(value, refs);
+  } else {
+    return getObjectHashCode(value, refs);
+  }
+
 }
