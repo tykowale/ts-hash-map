@@ -1,9 +1,5 @@
 type TypeOfResult = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function';
 
-function isSymbolEqual(a: symbol, b: symbol): boolean {
-  return a.valueOf() === b.valueOf();
-}
-
 function isDateEqual(a: Date, b: Date): boolean {
   return a.getTime() === b.getTime();
 }
@@ -69,7 +65,7 @@ function isSetEqual(a: Set<unknown>, b: Set<unknown>): boolean {
 }
 
 function isPrimitive(t: TypeOfResult): boolean {
-  return t !== 'object' && t !== 'function' && t !== 'symbol';
+  return t !== 'object' && t !== 'function';
 }
 
 function isObjectEqual(a: any, b: any, refs: any[]): boolean {
@@ -122,8 +118,6 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
   // strings, booleans, etc would be caught in the first check so no need to
   // check again. We know they are false and will be caught in the default
   switch (typeA) {
-    case 'symbol':
-      return isSymbolEqual(a as symbol, b as symbol);
     case 'function':
       return isFunctionEqual(a as Function, b as Function);
     case 'object':
