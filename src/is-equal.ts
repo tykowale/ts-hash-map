@@ -39,8 +39,7 @@ function isMapEqual(a: Map<any, unknown>, b: Map<any, unknown>, refs: unknown[])
     return false;
   }
 
-  const aIterator = a.entries();
-  for (const [key, value] of aIterator) {
+  for (const [key, value] of a) {
     if (!b.has(key) || !isEqual(value, b.get(key), refs)) {
       return false;
     }
@@ -54,8 +53,7 @@ function isSetEqual(a: Set<unknown>, b: Set<unknown>): boolean {
     return false;
   }
 
-  const aIterator = a.values();
-  for (const value of aIterator) {
+  for (const value of a) {
     if (!b.has(value)) {
       return false;
     }
