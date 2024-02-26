@@ -27,6 +27,7 @@ function getArrayHashCode(value: unknown[], refs: unknown[]): number {
   for (const item of value) {
     // 31 is just random large prime. It could really be anything
     hash = (hash * 31) + getHashCode(item, refs);
+    hash |= 0; // Convert to 32-bit integer
   }
 
   return hash;
@@ -37,6 +38,7 @@ function getMapHashCode(value: Map<any, unknown>, refs: unknown[]): number {
   for (const [key, val] of value.entries()) {
     // 59 is just random large prime. It could really be anything
     hash ^= (hash * 59) + getHashCode(key, refs) ^ getHashCode(val, refs);
+    hash |= 0; // Convert to 32-bit integer
   }
   return hash;
 }
@@ -45,6 +47,7 @@ function getSetHashCode(value: Set<unknown>, refs: unknown[]): number {
   let hash = 0;
   for (const item of value) {
     hash += getHashCode(item, refs);
+    hash |= 0; // Convert to 32-bit integer
   }
   return hash;
 }
@@ -56,6 +59,7 @@ function getObjectHashCode(value: any, refs: any[]): number {
   for (const key of keys) {
     // 97 is just random large prime. It could really be anything
     hash ^= (hash * 97) + getStringHashCode(key) ^ getHashCode(value[key], refs);
+    hash |= 0; // Convert to 32-bit integer
   }
 
   return hash;
