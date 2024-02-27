@@ -5,11 +5,13 @@ function getBooleanHashCode(value: boolean): number {
 
 function getStringHashCode(value: string): number {
   let hash = 0;
+
   for (let i = 0; i < value.length; i++) {
     const charCode = value.charCodeAt(i);
-    hash = (hash << 5) - hash + charCode;
-    hash |= 0; // Convert to 32-bit integer
+    hash = (hash * 31) + charCode;
+    hash |= 0;
   }
+
   return hash;
 }
 
@@ -25,9 +27,8 @@ function getArrayHashCode(value: unknown[], refs: unknown[]): number {
   let hash = 0;
 
   for (const item of value) {
-    // 31 is just random large prime. It could really be anything
     hash = (hash * 31) + getHashCode(item, refs);
-    hash |= 0; // Convert to 32-bit integer
+    hash |= 0;
   }
 
   return hash;
@@ -36,9 +37,8 @@ function getArrayHashCode(value: unknown[], refs: unknown[]): number {
 function getMapHashCode(value: Map<any, unknown>, refs: unknown[]): number {
   let hash = 0;
   for (const [key, val] of value.entries()) {
-    // 59 is just random large prime. It could really be anything
-    hash ^= (hash * 59) + getHashCode(key, refs) ^ getHashCode(val, refs);
-    hash |= 0; // Convert to 32-bit integer
+    hash ^= (hash * 31) + getHashCode(key, refs) + getHashCode(val, refs);
+    hash |= 0;
   }
   return hash;
 }
@@ -47,7 +47,7 @@ function getSetHashCode(value: Set<unknown>, refs: unknown[]): number {
   let hash = 0;
   for (const item of value) {
     hash += getHashCode(item, refs);
-    hash |= 0; // Convert to 32-bit integer
+    hash |= 0;
   }
   return hash;
 }
@@ -57,9 +57,8 @@ function getObjectHashCode(value: any, refs: any[]): number {
 
   const keys = Object.keys(value).sort();
   for (const key of keys) {
-    // 97 is just random large prime. It could really be anything
-    hash ^= (hash * 97) + getStringHashCode(key) ^ getHashCode(value[key], refs);
-    hash |= 0; // Convert to 32-bit integer
+    hash ^= (hash * 31) + getStringHashCode(key) + getHashCode(value[key], refs);
+    hash |= 0;
   }
 
   return hash;
@@ -111,5 +110,4 @@ export function getHashCode(value: unknown, refs: unknown[] = []): number {
   } else {
     return getObjectHashCode(value, refs);
   }
-
 }

@@ -318,8 +318,8 @@ describe('HashMap', () => {
         values.push(value);
       });
 
-      expect(keys).toEqual([key2, key1]);
-      expect(values).toEqual(['value2', 'value1']);
+      expect(keys).toEqual([key1, key2]);
+      expect(values).toEqual(['value1', 'value2']);
     });
   });
 });

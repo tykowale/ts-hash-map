@@ -15,10 +15,10 @@ describe('getHashCode tests', () => {
   ${/^hello$/i}             | ${459043387}
   ${() => {}}               | ${-702898920}
   ${[1, 2, 3]}              | ${1026}
-  ${new Map([[1, 'one'], [2, 'two']])} | ${6512020}
+  ${new Map([[1, 'one'], [2, 'two']])} | ${3428000}
   ${new Set([1, 2, 3])}     | ${6}
   ${{}}                     | ${0}
-  ${{ a: 1, b: 2 }}         | ${9376} 
+  ${{ a: 1, b: 2 }}         | ${3104} 
   `('returns $expected for $value', ({ value, expected }) => {
     expect(getHashCode(value)).toEqual(expected);
   });
