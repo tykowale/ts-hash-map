@@ -88,10 +88,10 @@ Comparison between native and ts-hash-map, 100,000 iterations of doing the same 
 
 |       Title        | Total Time (ms) | Time per Operation (ms) | Operations per Second |
 |-------------------|-----------------|-------------------------|-----------------------|
-|   'Hash Map Set'  |      2866       |      '0.0002866000'     |       '3,489,183'     |
-|   'Hash Map Get'  |      1144       |      '0.0001144000'     |       '8,741,258'     |
-| 'Hash Map Update' |      2795       |      '0.0002795000'     |       '3,577,817'     |
-| 'Hash Map Delete' |      735       |      '0.0000735000'     |       '13,605,442'     |
+|   'Hash Map Set'  |      2589       |      '0.0002589000'     |       '3,862,495'     |
+|   'Hash Map Get'  |      1038       |      '0.0001038000'     |       '9,633,911'     |
+| 'Hash Map Update' |      2489       |      '0.0002489000'     |       '4,017,677'     |
+| 'Hash Map Delete' |      750       |      '0.0000750000'     |       '13,333,333'     |
 |  'Native Map Set' |      1690       |      '0.0001690000'     |       '5,917,159'     |
 |  'Native Map Get' |       18        |      '0.0000018000'     |     '555,555,555'     |
 |'Native Map Update'|      1184       |      '0.0001184000'     |       '8,445,945'     |

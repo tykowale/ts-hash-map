@@ -92,8 +92,8 @@ export function isEqual(a: unknown, b: unknown, refs: unknown[] = []): boolean {
     return false;
   }
 
-  const typeA = typeof a;
-  const typeB = typeof b;
+  const typeA: TypeOfResult = typeof a;
+  const typeB: TypeOfResult = typeof b;
 
   // early exit for primitives to save any additional checks
   if (isPrimitive(typeA) || isPrimitive(typeB)) {
