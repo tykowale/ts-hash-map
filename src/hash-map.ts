@@ -98,13 +98,13 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   set(key: K, value: V): this {
-    const hash = getHashCode(key);
-    const index = hash & (this.capacity - 1);
+    const hash = this.hash(key);
+    const index = this.hashIndex(hash);
     let node: Node<K, V> | undefined = this.table[index];
 
     // if the key is already in the map we need to update it
     while (node !== undefined) {
-      if (isEqual(node.key, key)) {
+      if (node.hash === hash && isEqual(node.key, key)) {
         node.value = value;
         return this;
       }
@@ -128,12 +128,13 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   delete(key: K): boolean {
-    const index = this.hash(key);
+    const hash = this.hash(key);
+    const index = this.hashIndex(hash);
     let currNode: Node<K, V> | undefined = this.table[index];
     let prevNode: Node<K, V> | undefined = undefined;
 
     while (currNode !== undefined) {
-      if (isEqual(currNode.key, key)) {
+      if (currNode.hash === hash && isEqual(currNode.key, key)) {
         if (prevNode === undefined) {
           this.table[index] = currNode.next;
         } else {
@@ -174,16 +175,22 @@ export class HashMap<K, V> implements Map<K, V> {
     return new HashMapKeysIterable(this.table, this.capacity);
   }
 
+
   private hash(key: K): number {
-    return getHashCode(key) & (this.capacity - 1);
+    return getHashCode(key);
+  }
+
+  private hashIndex(hash: number): number {
+    return hash & (this.capacity - 1);
   }
 
   private getNode(key: K): Node<K, V> | undefined {
-    const index = this.hash(key);
+    const hash = this.hash(key);
+    const index = this.hashIndex(hash);
     let node: Node<K, V> | undefined = this.table[index];
 
     while (node !== undefined) {
-      if (isEqual(key, node.key)) {
+      if (node.hash === hash && isEqual(key, node.key)) {
         return node;
       }
 
