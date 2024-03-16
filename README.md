@@ -85,6 +85,7 @@ map.size; // returns 1
 ## Benchmarks
 
 Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map. 
+These benchmarks are for Map<string, string> so an all primitive comparison 
 
 |       Title        | Total Time (ms) | Time per Operation (ms) | Operations per Second |
 |-------------------|-----------------|-------------------------|-----------------------|
@@ -96,3 +97,22 @@ Comparison between native and ts-hash-map, 100,000 iterations of doing the same 
 |  'Native Map Get' |       18        |      '0.0000018000'     |     '555,555,555'     |
 |'Native Map Update'|      1184       |      '0.0001184000'     |       '8,445,945'     |
 |'Native Map Delete'|       96        |      '0.0000096000'     |     '104,166,666'     |
+
+
+These benchmarks are for Map<CustomObject, string>. It assumes to store the object in the map
+you want deep equality so we use [fast-json-stable-stringify](https://www.npmjs.com/package/fast-json-stable-stringify) then store
+it in the native m ap as Map<string, string>. This is done with only 10,000 iterations so total time is not apples
+to apples with the above table.
+
+| Title               | Total Time (ms) | Time per Operation (ms) | Operations per Second |
+|---------------------|------------------|-------------------------|-----------------------|
+| Hash Map Set        | 1274             | 0.0012740000            | 784,929               |
+| Hash Map Get        | 988              | 0.0009880000            | 1,012,145             |
+| Hash Map Update     | 1223             | 0.0012230000            | 817,661               |
+| Hash Map Delete     | 898              | 0.0008980000            | 1,113,585             |
+| Native Map Set      | 6527             | 0.0065270000            | 153,209               |
+| Native Map Get      | 2706             | 0.0027060000            | 369,549               |
+| Native Map Update   | 7904             | 0.0079040000            | 126,518               |
+| Native Map Delete   | 3950             | 0.0039500000            | 253,164               |
+
+
