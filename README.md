@@ -89,14 +89,14 @@ These benchmarks are for Map<string, string> so an all primitive comparison
 
 |       Title        | Total Time (ms) | Time per Operation (ms) | Operations per Second |
 |-------------------|-----------------|-------------------------|-----------------------|
-|   'Hash Map Set'  |      2402       |      '0.0002402000'     |       '4,163,197'     |
-|   'Hash Map Get'  |      974       |      '0.0000974000'     |       '10,266,940'     |
-| 'Hash Map Update' |      2207       |      '0.0002207000'     |       '4,531,037'     |
-| 'Hash Map Delete' |      665       |      '0.0000665000'     |       '15,037,593'     |
-|  'Native Map Set' |      1690       |      '0.0001690000'     |       '5,917,159'     |
-|  'Native Map Get' |       18        |      '0.0000018000'     |     '555,555,555'     |
-|'Native Map Update'|      1184       |      '0.0001184000'     |       '8,445,945'     |
-|'Native Map Delete'|       96        |      '0.0000096000'     |     '104,166,666'     |
+|   Hash Map Set  |      2402       |      0.0002402000     |       4,163,197     |
+|   Hash Map Get  |      974       |      0.0000974000     |       10,266,940     |
+| Hash Map Update |      2207       |      0.0002207000     |       4,531,037     |
+| Hash Map Delete |      665       |      0.0000665000     |       15,037,593     |
+|  Native Map Set |      1690       |      0.0001690000     |       5,917,159     |
+|  Native Map Get |       18        |      0.0000018000     |     555,555,555     |
+|Native Map Update|      1184       |      0.0001184000     |       8,445,945     |
+|Native Map Delete|       96        |      0.0000096000     |     104,166,666     |
 
 
 These benchmarks are for Map<CustomObject, string>. It assumes to store the object in the map
