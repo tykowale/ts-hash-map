@@ -68,7 +68,7 @@ describe('HashMap', () => {
       expect(hashMap.capacity).toEqual(64);
       // @ts-expect-error ignore private
       expect(hashMap.loadFactor).toEqual(options.loadFactor);
-    })
+    });
   });
 
   describe('with primitive keys', () => {
@@ -96,6 +96,16 @@ describe('HashMap', () => {
 
       it('returns undefined for non-existing keys', () => {
         expect(hashMap.get(1)).toBeUndefined();
+      });
+
+      it('returns default value when provided', () => {
+        expect(hashMap.getOrDefault(1, 'default')).toEqual('default');
+        expect(hashMap.size).toEqual(0);
+      });
+
+      it('throws an error if element is not found', () => {
+        expect(() => hashMap.getOrThrow(1)).toThrow('Element not found');
+        expect(hashMap.size).toEqual(0);
       });
 
       it('returns true when a key exists', () => {

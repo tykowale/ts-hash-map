@@ -82,6 +82,24 @@ map.set('apple', 5);
 map.size; // returns 1
 ```
 
+#### getOrDefault
+
+Sometimes you want a default value instead of having to check for an undefined value
+```ts
+const map = new HashMap<string, number>();
+
+map.getOrDefault('hello', 'world'); // returns 'world'
+```
+
+#### getOrThrow
+
+Sometimes you know an element should exist and do not want to deal with an undefined check
+```ts
+const map = new HashMap<string, number>();
+
+map.getOrThrow('hello'); // throws Error
+```
+
 ## Benchmarks
 
 Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map. 

@@ -91,6 +91,26 @@ export class HashMap<K, V> implements Map<K, V> {
     return node.value;
   }
 
+  getOrDefault(key: K, defaultValue: V) {
+    const node = this.getNode(key);
+
+    if (node === undefined) {
+      return defaultValue;
+    }
+
+    return node.value;
+  }
+
+  getOrThrow(key: K) {
+    const node = this.getNode(key);
+
+    if (node === undefined) {
+      throw new Error('Element not found');
+    }
+
+    return node.value;
+  }
+
   has(key: K): boolean {
     const node = this.getNode(key);
 
