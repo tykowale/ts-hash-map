@@ -1,8 +1,11 @@
 import { HashMap } from './hash-map';
 
+// if you are looking for custom hash/equals functions these are atrocious and should not be used
+const customHashFn = (value: unknown) => (typeof value === 'string' ? value.length : 0);
+const customEqualsFn = (a: unknown, b: unknown) => (a === b);
+
 describe('HashMap', () => {
   describe('constructor', () => {
-
     it('initializes with default values if no arguments are provided', () => {
       const hashMap = new HashMap();
       expect(hashMap.size).toEqual(0);
@@ -68,6 +71,36 @@ describe('HashMap', () => {
       expect(hashMap.capacity).toEqual(64);
       // @ts-expect-error ignore private
       expect(hashMap.loadFactor).toEqual(options.loadFactor);
+    });
+
+    it('uses custom hash function if provided', () => {
+      const options = { hashFn: customHashFn };
+      const hashMap = new HashMap(options);
+
+      hashMap.set('key', 'value');
+
+      expect(hashMap.get('key')).toEqual('value');
+    });
+
+    it('uses custom equality function if provided', () => {
+      const options = { equalsFn: customEqualsFn };
+      const hashMap = new HashMap(options);
+
+      hashMap.set('key', 'value');
+
+      expect(hashMap.get('key')).toEqual('value');
+
+      expect(hashMap.get('differentKey')).toBeUndefined();
+    });
+
+    it('uses custom hash and equality functions together', () => {
+      const options = { hashFn: customHashFn, equalsFn: customEqualsFn };
+      const hashMap = new HashMap(options);
+
+      hashMap.set('key', 'value');
+      hashMap.set('key', 'newValue');
+
+      expect(hashMap.get('key')).toEqual('newValue');
     });
   });
 
