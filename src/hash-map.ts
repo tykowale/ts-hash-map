@@ -15,12 +15,25 @@ export type HashMapOptions = {
    * If not provided, the default initial capacity (16) is used.
    */
   capacity?: number,
+
   /**
    * The load factor of the hashmap.
    * Determines when the hashmap should resize based on its size relative to its capacity.
    * If not provided, the default load factor (0.75) is used.
    */
   loadFactor?: number;
+
+  /**
+   * Allows for overriding the default hash function, useful if objects already have
+   * a natural hash or if other libraries have better performance
+   */
+  hashFn?: (value: unknown) => number;
+
+  /**
+   * Allows for overriding the default equals function, useful if objects already have
+   * a quick equality check or if other libraries have better performance
+   */
+  equalsFn?: (a: unknown, b: unknown) => boolean;
 };
 
 export class HashMap<K, V> implements Map<K, V> {
@@ -32,6 +45,8 @@ export class HashMap<K, V> implements Map<K, V> {
 
   private capacity: number;
   private loadFactor: number;
+  private hashFn: (value: unknown) => number;
+  private isEqual: (a: unknown, b: unknown) => boolean;
   private table: Array<Node<K, V> | undefined>;
 
   /**
@@ -71,6 +86,8 @@ export class HashMap<K, V> implements Map<K, V> {
 
     this.capacity = opts.capacity ?? this.DEFAULT_INITIAL_CAPACITY;
     this.loadFactor = opts.loadFactor ?? this.DEFAULT_LOAD_FACTOR;
+    this.hashFn = opts.hashFn ?? getHashCode;
+    this.isEqual = opts.equalsFn ?? isEqual;
     this.size = 0;
     this.table = new Array(this.capacity);
 
@@ -124,7 +141,7 @@ export class HashMap<K, V> implements Map<K, V> {
 
     // if the key is already in the map we need to update it
     while (node !== undefined) {
-      if (node.hash === hash && isEqual(node.key, key)) {
+      if (node.hash === hash && this.isEqual(node.key, key)) {
         node.value = value;
         return this;
       }
@@ -154,7 +171,7 @@ export class HashMap<K, V> implements Map<K, V> {
     let prevNode: Node<K, V> | undefined = undefined;
 
     while (currNode !== undefined) {
-      if (currNode.hash === hash && isEqual(currNode.key, key)) {
+      if (currNode.hash === hash && this.isEqual(currNode.key, key)) {
         if (prevNode === undefined) {
           this.table[index] = currNode.next;
         } else {
@@ -197,7 +214,7 @@ export class HashMap<K, V> implements Map<K, V> {
 
 
   private hash(key: K): number {
-    return getHashCode(key);
+    return this.hashFn(key);
   }
 
   private hashIndex(hash: number): number {
@@ -210,7 +227,7 @@ export class HashMap<K, V> implements Map<K, V> {
     let node: Node<K, V> | undefined = this.table[index];
 
     while (node !== undefined) {
-      if (node.hash === hash && isEqual(key, node.key)) {
+      if (node.hash === hash && this.isEqual(key, node.key)) {
         return node;
       }
 
