@@ -56,7 +56,20 @@ const WORKLOAD_NAMES = [
   'nested',
   'mixed',
 ];
-const PRIMITIVE = new Set(WORKLOAD_NAMES.slice(0, 12));
+const PRIMITIVE = new Set([
+  'int',
+  'sparse-int',
+  'float',
+  'strided-int',
+  'tagged-int',
+  'timestamp-ms',
+  'string-8',
+  'uuid',
+  'string-100',
+  'string-8-fresh',
+  'uuid-fresh',
+  'string-100-fresh',
+]);
 const OP_NAMES = [
   'get-hit',
   'get-hit-seq',
@@ -291,6 +304,8 @@ function profileOne(spec: Spec, o: Options, outDir: string, quiet = false): RunO
     ...(o.noInline ? ['--no-turbo-inlining'] : []),
     ...(o.traceDeopt ? ['--trace-opt', '--trace-deopt'] : []),
     ...o.nodeFlags,
+    // Lets workloads.ts keep runTimed out of TurboFan, so TIMED_ROOT keeps its own frame.
+    '--allow-natives-syntax',
     '--cpu-prof',
     `--cpu-prof-dir=${outDir}`,
     `--cpu-prof-name=${name}.cpuprofile`,
@@ -438,6 +453,10 @@ async function runSmoke(o: Options): Promise<void> {
   const { OPS, WORKLOADS, runTimed } = await import('./workloads.ts');
   const missingW = Object.keys(WORKLOADS).filter((w) => !WORKLOAD_NAMES.includes(w));
   const missingO = OPS.filter((op) => !OP_NAMES.includes(op));
+  const wrongSizes = Object.entries(WORKLOADS)
+    .filter(([name, w]) => w.sizes !== scenarioSizes(name))
+    .map(([name]) => `${name} (sizes)`);
+  missingW.push(...wrongSizes);
   if (
     missingW.length + missingO.length > 0 ||
     WORKLOAD_NAMES.length !== Object.keys(WORKLOADS).length
@@ -472,6 +491,16 @@ async function runSmoke(o: Options): Promise<void> {
   for (const spec of specs) {
     try {
       const out = profileOne(spec, { ...o, seconds: 0.3, top: 5 }, outDir, true);
+      if (spec.op === 'clear') {
+        // clear never hashes: hash.ts frames in its timed work mean setup leaked into the window.
+        const full = analyze(readProfile(join(outDir, `${out.name}.cpuprofile`)), [REPO], 1e6);
+        const leaked = full.total.filter(([k]) => /src\/hash\.ts/.test(k));
+        if (leaked.length > 0) {
+          throw new Error(
+            `${out.name}: setup leaked into the timed profile: ${leaked.map(([k, v]) => `${v.toFixed(1)}% ${k}`).join(', ')}`,
+          );
+        }
+      }
       console.log(
         `profile smoke: ${out.name} ${formatNs(out.result.nsPerOp)}/op, ${out.analysis.timedSamples} timed samples, ` +
           `top self: ${out.analysis.self[0]?.[0] ?? '-'}`,

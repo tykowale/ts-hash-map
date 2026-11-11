@@ -10,7 +10,8 @@
  * workload fails instead of profiling nothing.
  *
  * `runTimed` runs the calls inside a function named TIMED_ROOT and the setups inside one named
- * UNTIMED_SETUP, so the profile reader (cpuprofile.ts) can keep exactly the timed work.
+ * UNTIMED_SETUP, never one inside the other, so the profile reader (cpuprofile.ts) can keep
+ * exactly the timed work.
  */
 import { PRIMITIVE_SIZES, STRUCTURAL_SIZES } from '../lib/config.ts';
 import {
@@ -465,47 +466,60 @@ function check(p: Plan, spec: WorkloadSpec, when: string): void {
 
 // The two function names below are what cpuprofile.ts looks for. Keep them, and keep each in its
 // own function declaration so the profiler sees the frames.
+//
+// Setup never runs inside TIMED_ROOT: TurboFan may inline UNTIMED_SETUP into its caller, and
+// then the frame that marks a sample as setup is gone. So `runTimed` calls UNTIMED_SETUP and
+// TIMED_ROOT one after the other, and a setup sample can only ever carry the runTimed frame.
+// The profiled process also runs with --allow-natives-syntax, and `runTimed` is then kept out
+// of TurboFan so it cannot inline TIMED_ROOT (whose frame marks timed samples) either.
 
 /** Untimed per-call setup: excluded from ns/op and from the profile tables. */
 function UNTIMED_SETUP(setup: () => unknown): unknown {
   return setup();
 }
 
-/** The timed loop: calls `run` until `seconds` of timed work have accumulated. */
-function TIMED_ROOT(p: Plan, seconds: number): { calls: number; timedMs: number } {
-  const budget = seconds * 1000;
-  let timedMs = 0;
-  let calls = 0;
-  if (p.setup) {
-    const setup = p.setup;
-    while (timedMs < budget) {
-      const state = UNTIMED_SETUP(setup);
-      const t0 = performance.now();
-      doNotOptimize(p.run(state));
-      timedMs += performance.now() - t0;
-      calls++;
-    }
-  } else {
-    // No setup: time batches of calls, so the clock reads stay negligible.
-    while (timedMs < budget) {
-      const t0 = performance.now();
-      for (let i = 0; i < 16; i++) {
-        doNotOptimize(p.run(undefined));
-      }
-      timedMs += performance.now() - t0;
-      calls += 16;
-    }
+/** One timed call on a prepared state; returns its milliseconds. */
+function TIMED_ROOT(p: Plan, state: unknown, calls: number): number {
+  const t0 = performance.now();
+  for (let i = 0; i < calls; i++) {
+    doNotOptimize(p.run(state));
   }
-  return { calls, timedMs };
+  return performance.now() - t0;
 }
 
-/** Builds the workload (untimed), verifies it, runs it for `seconds`, and verifies it again. */
+/**
+ * Marks `fn` never-optimize when the process runs with --allow-natives-syntax (the profiled child
+ * does); a no-op otherwise, e.g. in the in-process smoke checks.
+ */
+function neverOptimize(fn: (...args: never[]) => unknown): void {
+  if (!process.execArgv.includes('--allow-natives-syntax')) {
+    return;
+  }
+  // oxlint-disable-next-line typescript/no-implied-eval -- V8 natives syntax is not TypeScript
+  (new Function('f', '%NeverOptimizeFunction(f);') as (f: unknown) => void)(fn);
+}
+
+/**
+ * Builds the workload (untimed), verifies it, runs it until `seconds` of timed work have
+ * accumulated, and verifies it again. With a setup every timed call gets a fresh state; without
+ * one, calls are timed in batches of 16 so the clock reads stay negligible.
+ */
 export function runTimed(spec: WorkloadSpec, seconds: number): TimedResult {
   const w = getWorkload(spec.workload);
   const p = plan(w, spec.op, spec.n, rngFor(`${spec.workload}:${spec.n}`));
   check(p, spec, 'before timing');
-  const { calls, timedMs } = TIMED_ROOT(p, seconds);
+  const budget = seconds * 1000;
+  let timedMs = 0;
+  let calls = 0;
+  const setup = p.setup;
+  const batch = setup ? 1 : 16;
+  while (timedMs < budget) {
+    const state = setup ? UNTIMED_SETUP(setup) : undefined;
+    timedMs += TIMED_ROOT(p, state, batch);
+    calls += batch;
+  }
   check(p, spec, 'after timing');
   const ops = calls * p.ops;
   return { ...spec, calls, ops, timedMs, nsPerOp: (timedMs * 1e6) / ops };
 }
+neverOptimize(runTimed);

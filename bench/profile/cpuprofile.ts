@@ -1,8 +1,9 @@
 /**
  * Reads a V8 `.cpuprofile` (from `node --cpu-prof`) and keeps only the timed work: samples whose
  * stack contains TIMED_ROOT and not UNTIMED_SETUP (see workloads.ts), plus the GC and `(program)`
- * samples that fall between the first and last timed sample, since GC caused by the timed loop
- * runs outside any JS stack. From those it builds self/total tables and a flame graph SVG.
+ * samples that fall between the first and last timed sample and follow a timed sample, since GC
+ * caused by the timed loop runs outside any JS stack. GC that follows setup (or other untimed JS)
+ * is the setup's allocation and is dropped with it. From those it builds self/total tables and a flame graph SVG.
  */
 import { readFileSync } from 'node:fs';
 import { basename, relative } from 'node:path';
@@ -125,6 +126,11 @@ interface Indexed {
   weights: number[];
   isTimed: (id: number) => boolean;
   isSetup: (id: number) => boolean;
+  /**
+   * Per sample index: kept as timed work. A timed sample is kept; a GC, (program) or (idle)
+   * sample is kept when the last JS sample before it was timed; anything else is dropped.
+   */
+  keep: boolean[];
   /** First and last sample index whose stack is timed work. */
   first: number;
   last: number;
@@ -174,17 +180,30 @@ function index(prof: CpuProfile, roots: string[]): Indexed {
   for (let i = 0; i < prof.samples.length; i++) {
     weights.push(prof.timeDeltas[i + 1] ?? 0);
   }
+  const outsideJs = (id: number): boolean => {
+    const name = byId.get(id)!.callFrame.functionName;
+    return name === '(garbage collector)' || name === '(program)' || name === '(idle)';
+  };
   let first = -1;
   let last = -1;
+  const keep: boolean[] = [];
+  let lastJsTimed = false;
   for (let i = 0; i < prof.samples.length; i++) {
-    if (isTimed(prof.samples[i]!)) {
+    const id = prof.samples[i]!;
+    if (outsideJs(id)) {
+      keep.push(lastJsTimed);
+      continue;
+    }
+    lastJsTimed = isTimed(id);
+    keep.push(lastJsTimed);
+    if (lastJsTimed) {
       if (first < 0) {
         first = i;
       }
       last = i;
     }
   }
-  return { stack, weights, isTimed, isSetup, first, last };
+  return { stack, weights, isTimed, isSetup, keep, first, last };
 }
 
 /** Self and total time per frame over the timed window (see the file comment). */
@@ -199,15 +218,11 @@ export function analyze(prof: CpuProfile, roots: string[], top = 25): Analysis {
   if (ix.first >= 0) {
     for (let i = ix.first; i <= ix.last; i++) {
       const id = prof.samples[i]!;
-      if (ix.isSetup(id)) {
-        continue;
+      if (!ix.keep[i]) {
+        continue; // setup, GC after setup, or other untimed JS between timed calls
       }
       const st = ix.stack(id);
       const leaf = st[0] ?? '(root)';
-      const outside = leaf === '(garbage collector)' || leaf === '(program)' || leaf === '(idle)';
-      if (!ix.isTimed(id) && !outside) {
-        continue; // some other JS between timed calls (none expected)
-      }
       const w = ix.weights[i]!;
       counted += w;
       if (ix.isTimed(id)) {
@@ -297,7 +312,7 @@ export function flameGraphSvg(prof: CpuProfile, roots: string[], title: string):
   const tree: FlameNode = { name: 'all', v: 0, kids: new Map() };
   for (let i = Math.max(ix.first, 0); ix.first >= 0 && i <= ix.last; i++) {
     const id = prof.samples[i]!;
-    if (ix.isSetup(id)) {
+    if (!ix.keep[i]) {
       continue;
     }
     const st = ix.stack(id).toReversed(); // root first

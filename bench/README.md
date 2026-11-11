@@ -344,9 +344,12 @@ npm run bench:profile:smoke                                                   # 
 
 Each run is its own `node --cpu-prof` process (sampling every 250 µs, `--interval`). Like a bench
 case, a workload is split into untimed setup and a timed loop, and its checksum is verified
-before and after timing. The timed loop runs inside a function named `TIMED_ROOT` and per-call
-setup inside `UNTIMED_SETUP`, so the reader keeps only timed work (plus GC and `(program)`
-samples between the first and last timed sample). It writes to `bench/results/profiles/`
+before and after timing. Each timed call runs inside a function named `TIMED_ROOT` and its
+per-call setup inside `UNTIMED_SETUP`, called one after the other and never one inside the
+other, so inlining cannot hide which is which. The reader keeps only timed work, plus GC and
+`(program)` samples that follow a timed sample; GC after setup is the setup's and is dropped. The
+smoke run fails if `user-record n=100 clear` (which never hashes) shows `src/hash.ts` frames. It
+writes to `bench/results/profiles/`
 (gitignored):
 
 - `<workload>_<n>_<op>.cpuprofile`: open it in Chrome DevTools or speedscope.
