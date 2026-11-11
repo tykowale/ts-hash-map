@@ -194,8 +194,7 @@ describe('HashMap collisions and resizing', () => {
       expect(map.size).toBe(9);
     });
 
-    // BUG: node.hash === hash is false when the hash is NaN, so nothing can ever be found or updated.
-    test.failing('NaN hash: keys can still be found, updated and deleted', () => {
+    test('NaN hash: keys can still be found, updated and deleted', () => {
       const map = new HashMap<string, number>({ hashFn: () => NaN });
       map.set('x', 1);
       map.set('x', 2);
@@ -294,8 +293,7 @@ describe('HashMap collisions and resizing', () => {
       expect(map.get('b')).toBe(2);
     });
 
-    // BUG: capacity 0 rounds to 2^-Infinity = 0, mask becomes -1 and resize doubles 0 -> 0, dropping entries.
-    test.failing('capacity 0 still produces a usable map', () => {
+    test('capacity 0 still produces a usable map', () => {
       const map = new HashMap<string, number>({ capacity: 0 });
       map.set('a', 1).set('b', 2);
       expect(map.get('a')).toBe(1);

@@ -99,8 +99,7 @@ describe('isEqual edge cases', () => {
       });
     });
 
-    // BUG: cross-type comparisons fall into isObjectEqual (e.g. {x: undefined} vs [3]), which is order-dependent
-    test.failing('is symmetric and reflexive on seeded random structures', () => {
+    test('is symmetric and reflexive on seeded random structures', () => {
       const rand = mulberry32(1234);
       const values = Array.from({ length: 60 }, () => randomValue(rand));
       for (const a of values) {
@@ -111,8 +110,7 @@ describe('isEqual edge cases', () => {
       }
     });
 
-    // BUG: cross-type equality (e.g. [] == {} and {} == Date) breaks transitivity
-    test.failing('is transitive on seeded random structures', () => {
+    test('is transitive on seeded random structures', () => {
       const rand = mulberry32(42);
       const values = Array.from({ length: 40 }, () => randomValue(rand));
       for (const a of values) {
@@ -135,13 +133,11 @@ describe('isEqual edge cases', () => {
       expect(isEqual(a, c)).toBe(true);
     });
 
-    // BUG: isObjectEqual iterates a's keys and indexes b, so {x: undefined} vs [3] is true one way and false the other
-    test.failing('is symmetric for an object with an undefined prop vs a one-element array', () => {
+    test('is symmetric for an object with an undefined prop vs a one-element array', () => {
       expect(isEqual({ x: undefined }, [3])).toBe(isEqual([3], { x: undefined }));
     });
 
-    // BUG: for...in walks inherited enumerable props but key counts use Object.keys, so the result depends on argument order
-    test.failing('is symmetric when one side has inherited enumerable properties', () => {
+    test('is symmetric when one side has inherited enumerable properties', () => {
       const proto = { inherited: 1 };
       const a = Object.create(proto);
       a.own = 1;
@@ -151,13 +147,11 @@ describe('isEqual edge cases', () => {
   });
 
   describe('number semantics (SameValueZero, as used by Map keys)', () => {
-    // BUG: NaN !== NaN and the primitive early-exit returns false; Map treats NaN keys as equal
-    test.failing('NaN equals NaN', () => {
+    test('NaN equals NaN', () => {
       expect(isEqual(NaN, NaN)).toBe(true);
     });
 
-    // BUG: nested NaN fails the same === check
-    test.failing.each<[string, () => unknown]>([
+    test.each<[string, () => unknown]>([
       ['array', () => [NaN]],
       ['object', () => ({ n: NaN })],
       ['Map value', () => new Map([['k', NaN]])],
@@ -209,13 +203,11 @@ describe('isEqual edge cases', () => {
       expect(isEqual(new String('a'), new String('ab'))).toBe(false);
     });
 
-    // BUG: boxed Number has no own keys, so isObjectEqual compares nothing and returns true
-    test.failing('boxed numbers with different values differ', () => {
+    test('boxed numbers with different values differ', () => {
       expect(isEqual(new Number(1), new Number(2))).toBe(false);
     });
 
-    // BUG: boxed Boolean has no own keys, so any two compare equal
-    test.failing('boxed booleans with different values differ', () => {
+    test('boxed booleans with different values differ', () => {
       expect(isEqual(new Boolean(true), new Boolean(false))).toBe(false);
     });
   });
@@ -240,8 +232,7 @@ describe('isEqual edge cases', () => {
       expect(isEqual({}, () => 1)).toBe(false);
     });
 
-    // BUG: mismatched containers fall through to isObjectEqual which only compares own enumerable keys
-    test.failing.each([
+    test.each([
       ['[] vs {}', () => [], () => ({})],
       ['["a"] vs {0:"a"}', () => ['a'], () => ({ 0: 'a' })],
       ['Date vs {}', () => new Date(0), () => ({})],
@@ -262,13 +253,11 @@ describe('isEqual edge cases', () => {
       expect(isEqual({}, { a: undefined })).toBe(false);
     });
 
-    // BUG: same key count and a.a === b.a === undefined (missing), so keys are never compared by name
-    test.failing('{a: undefined} does not equal {b: undefined}', () => {
+    test('{a: undefined} does not equal {b: undefined}', () => {
       expect(isEqual({ a: undefined }, { b: undefined })).toBe(false);
     });
 
-    // BUG: same root cause - key sets are not compared, only values via a's keys
-    test.failing('{a: 1, b: undefined} does not equal {a: 1, c: undefined}', () => {
+    test('{a: 1, b: undefined} does not equal {a: 1, c: undefined}', () => {
       expect(isEqual({ a: 1, b: undefined }, { a: 1, c: undefined })).toBe(false);
     });
 
@@ -297,8 +286,7 @@ describe('isEqual edge cases', () => {
       expect(isEqual(new Point(1, 2), new Point(2, 1))).toBe(false);
     });
 
-    // BUG: prototype/constructor is never compared, so different classes with same fields are equal
-    test.failing('instances of different classes with the same fields are not equal', () => {
+    test('instances of different classes with the same fields are not equal', () => {
       expect(isEqual(new Point(1, 2), new Vec(1, 2))).toBe(false);
     });
 
@@ -319,8 +307,7 @@ describe('isEqual edge cases', () => {
       expect(isEqual(a, { k: 1 })).toBe(isEqual({ k: 1 }, a));
     });
 
-    // BUG: Error's message/name are non-enumerable own props, so isObjectEqual sees no keys and any two Errors compare equal
-    test.failing('Errors with different messages are not equal', () => {
+    test('Errors with different messages are not equal', () => {
       expect(isEqual(new Error('a'), new Error('b'))).toBe(false);
     });
 
@@ -340,8 +327,7 @@ describe('isEqual edge cases', () => {
       expect(isEqual({ [s]: 1 }, { [s]: 1 })).toBe(true);
     });
 
-    // BUG: Object.keys / for...in skip symbol keys, so differing symbol props are ignored
-    test.failing('objects with different symbol-keyed values are not equal', () => {
+    test('objects with different symbol-keyed values are not equal', () => {
       expect(isEqual({ [s]: 1 }, { [s]: 2 })).toBe(false);
     });
 
@@ -352,13 +338,15 @@ describe('isEqual edge cases', () => {
   });
 
   describe('nested Maps and Sets', () => {
-    // Per the source comment, native Map keys / Set members are compared by reference (SameValueZero).
-    it('documents: Set of structurally-equal but distinct objects is not equal', () => {
-      expect(isEqual(new Set([{ id: 1 }]), new Set([{ id: 1 }]))).toBe(false);
+    // v2: Set members and Map keys are compared structurally (v1 compared them by reference).
+    it('Set of structurally-equal but distinct objects is equal', () => {
+      expect(isEqual(new Set([{ id: 1 }]), new Set([{ id: 1 }]))).toBe(true);
+      expect(isEqual(new Set([{ id: 1 }]), new Set([{ id: 2 }]))).toBe(false);
     });
 
-    it('documents: Map with structurally-equal but distinct object keys is not equal', () => {
-      expect(isEqual(new Map([[{ id: 1 }, 'v']]), new Map([[{ id: 1 }, 'v']]))).toBe(false);
+    it('Map with structurally-equal but distinct object keys is equal', () => {
+      expect(isEqual(new Map([[{ id: 1 }, 'v']]), new Map([[{ id: 1 }, 'v']]))).toBe(true);
+      expect(isEqual(new Map([[{ id: 1 }, 'v']]), new Map([[{ id: 2 }, 'v']]))).toBe(false);
     });
 
     it('Set/Map with shared object references are equal', () => {
@@ -449,8 +437,7 @@ describe('isEqual edge cases', () => {
   });
 
   describe('Dates', () => {
-    // BUG: getTime() is NaN for invalid dates and NaN !== NaN
-    test.failing('two invalid dates are equal', () => {
+    test('two invalid dates are equal', () => {
       expect(isEqual(new Date('nope'), new Date('also nope'))).toBe(true);
     });
 
@@ -554,8 +541,7 @@ describe('isEqual edge cases', () => {
       expect(isEqual({ x: o1, y: o2 }, { x: o2, y: o1 })).toBe(false);
     });
 
-    // BUG: refs tracks seen values individually, not as (a,b) pairs, so two unrelated seen values short-circuit to true
-    test.failing('values seen at different positions are not treated as equal', () => {
+    test('values seen at different positions are not treated as equal', () => {
       const x = { v: 1 };
       const y = { w: 2 };
       const x2 = { v: 1 };
@@ -609,25 +595,21 @@ describe('isEqual edge cases', () => {
       expect(isEqual(new Uint8Array([1, 2]), new Uint8Array([1, 2, 0]))).toBe(false);
     });
 
-    // BUG: typed arrays fall to isObjectEqual, which ignores the element type
-    test.failing('typed arrays of different element types differ', () => {
+    test('typed arrays of different element types differ', () => {
       expect(isEqual(new Uint8Array([1, 2]), new Int8Array([1, 2]))).toBe(false);
     });
 
-    // BUG: ArrayBuffer has no own enumerable keys, so any two buffers compare equal
-    test.failing('ArrayBuffers with different bytes differ', () => {
+    test('ArrayBuffers with different bytes differ', () => {
       const a = new Uint8Array([1, 2]).buffer;
       const b = new Uint8Array([9, 9]).buffer;
       expect(isEqual(a, b)).toBe(false);
     });
 
-    // BUG: same as above; byteLength is not compared either
-    test.failing('ArrayBuffers with different byteLength differ', () => {
+    test('ArrayBuffers with different byteLength differ', () => {
       expect(isEqual(new ArrayBuffer(2), new ArrayBuffer(8))).toBe(false);
     });
 
-    // BUG: DataView exposes no own enumerable keys, so contents are ignored
-    test.failing('DataViews over different bytes differ', () => {
+    test('DataViews over different bytes differ', () => {
       const a = new DataView(new Uint8Array([1]).buffer);
       const b = new DataView(new Uint8Array([2]).buffer);
       expect(isEqual(a, b)).toBe(false);
@@ -687,8 +669,7 @@ describe('isEqual edge cases', () => {
 
     // (Map insertion-order hash sensitivity is covered in hash.edge-cases.test.ts.)
 
-    // BUG: isEqual equates values of different types (e.g. {} and a Date) whose hashes differ
-    test.failing('holds over seeded random structures', () => {
+    test('holds over seeded random structures', () => {
       const rand = mulberry32(7);
       const values = Array.from({ length: 80 }, () => randomValue(rand));
       for (const a of values) {

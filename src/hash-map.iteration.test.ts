@@ -430,8 +430,7 @@ describe('HashMap iteration', () => {
       expect(seen).toHaveLength(9);
     });
 
-    // BUG: forEach uses the table-walking iterator; entries inserted into an already-passed bucket are skipped
-    test.failing('visits entries added during forEach (native Map semantics)', () => {
+    test('visits entries added during forEach (native Map semantics)', () => {
       const m = build([5]);
       const seen: number[] = [];
       m.forEach((_, k) => {
@@ -476,8 +475,7 @@ describe('HashMap iteration', () => {
       expect(m.size).toBe(0);
     });
 
-    // BUG: iterator keeps a pointer to the removed current node, whose stale `next` still references a later-deleted node
-    test.failing('deleting the current entry and then its chain successor does not visit the successor', () => {
+    test('deleting the current entry and then its chain successor does not visit the successor', () => {
       const m = build([1, 2, 3], { hashFn: constantHash });
       const order = [...m.keys()]; // chain order, e.g. [3, 2, 1]
       const seen: number[] = [];
@@ -501,8 +499,7 @@ describe('HashMap iteration', () => {
       expect(sortedNums(seen)).toEqual([0, 1, 9]);
     });
 
-    // BUG: new entries are prepended to bucket chains; if that bucket was already passed the iterator never sees them
-    test.failing('an entry added into an earlier bucket during iteration is visited', () => {
+    test('an entry added into an earlier bucket during iteration is visited', () => {
       const m = build([5]);
       const seen: number[] = [];
       for (const [k] of m) {
@@ -512,8 +509,7 @@ describe('HashMap iteration', () => {
       expect(seen).toEqual([5, 1]);
     });
 
-    // BUG: new nodes are prepended at the chain head, behind the iterator's current position
-    test.failing('an entry added into the current collision chain during iteration is visited', () => {
+    test('an entry added into the current collision chain during iteration is visited', () => {
       const m = build([1, 2], { hashFn: constantHash });
       const seen: number[] = [];
       for (const [k] of m) {
@@ -523,8 +519,7 @@ describe('HashMap iteration', () => {
       expect(sortedNums(seen)).toEqual([1, 2, 3]);
     });
 
-    // BUG: resize relinks nodes into a new table; the iterator still walks the old table/capacity and loses entries
-    test.failing('set() that triggers a resize mid-iteration still visits every original entry exactly once', () => {
+    test('set() that triggers a resize mid-iteration still visits every original entry exactly once', () => {
       // keys i and i+16 share bucket i at capacity 16 but split after resizing to 32
       const keys = range(6).flatMap((i) => [i, i + 16]); // 12 entries, threshold 12
       const m = build(keys);
@@ -539,8 +534,7 @@ describe('HashMap iteration', () => {
       expect(sortedNums(originals)).toEqual(sortedNums(keys));
     });
 
-    // BUG: after resize the iterator holds the stale table/capacity, so new entries (and some old ones) are missed
-    test.failing('entries added during iteration that trigger a resize are all visited', () => {
+    test('entries added during iteration that trigger a resize are all visited', () => {
       const m = build(range(12));
       const seen: number[] = [];
       for (const [k] of m) {
@@ -587,8 +581,7 @@ describe('HashMap iteration', () => {
       for (const k of range(10)) expect(seen).toContain(k);
     });
 
-    // BUG: clear() swaps in a new table but live iterators keep walking the old one
-    test.failing('clear() during iteration ends the iteration', () => {
+    test('clear() during iteration ends the iteration', () => {
       const m = build(range(10));
       const seen: number[] = [];
       for (const [k] of m) {
@@ -598,16 +591,14 @@ describe('HashMap iteration', () => {
       expect(seen).toHaveLength(3);
     });
 
-    // BUG: clear() swaps in a new table but an iterator created before it still yields the old entries
-    test.failing('an iterator created before clear() yields nothing afterwards', () => {
+    test('an iterator created before clear() yields nothing afterwards', () => {
       const m = build(range(5));
       const it = m.entries();
       m.clear();
       expect(it.next().done).toBe(true);
     });
 
-    // BUG: iterator captured the pre-resize table; resize relinks nodes so it no longer sees all entries
-    test.failing('an iterator created before a resize yields every entry present when consumed', () => {
+    test('an iterator created before a resize yields every entry present when consumed', () => {
       const keys = range(6).flatMap((i) => [i, i + 16]);
       const m = build(keys);
       const it = m.keys();

@@ -183,31 +183,27 @@ describe('HashMap Map conformance', () => {
   });
 
   describe('SameValueZero key semantics', () => {
-    // BUG: NaN hashes to NaN and isEqual uses ===, so NaN !== NaN and the key is never found.
-    test.failing('NaN can be used as a key and retrieved', () => {
+    test('NaN can be used as a key and retrieved', () => {
       const map = new HashMap<number, string>();
       map.set(NaN, 'nan');
       expect(map.has(NaN)).toBe(true);
       expect(map.get(NaN)).toBe('nan');
     });
 
-    // BUG: setting NaN twice inserts two entries because NaN never equals itself in set().
-    test.failing('setting NaN twice keeps a single entry (size 1)', () => {
+    test('setting NaN twice keeps a single entry (size 1)', () => {
       const map = new HashMap<number, string>();
       map.set(NaN, 'a').set(NaN, 'b');
       expect(map.size).toBe(1);
       expect([...map.values()]).toEqual(['b']);
     });
 
-    // BUG: NaN key cannot be found by delete() for the same reason as get/has.
-    test.failing('NaN key can be deleted', () => {
+    test('NaN key can be deleted', () => {
       const map = new HashMap<number, string>([[NaN, 'nan']]);
       expect(map.delete(NaN)).toBe(true);
       expect(map.size).toBe(0);
     });
 
-    // BUG: a NaN produced by a different computation (0/0) must match per SameValueZero.
-    test.failing('NaN from different computations is the same key', () => {
+    test('NaN from different computations is the same key', () => {
       const map = new HashMap<number, string>([[Number('not a number'), 'x']]);
       expect(map.get(0 / 0)).toBe('x');
     });
@@ -237,8 +233,7 @@ describe('HashMap Map conformance', () => {
       expect(map.get(0)).toBe('b');
     });
 
-    // BUG: native Map normalises a -0 key to +0 on insertion; HashMap stores and yields -0.
-    test.failing('-0 key is normalised to +0 when read back (like native Map)', () => {
+    test('-0 key is normalised to +0 when read back (like native Map)', () => {
       const native = new Map<number, string>([[-0, 'x']]);
       expect(Object.is([...native.keys()][0], 0)).toBe(true);
       const map = new HashMap<number, string>([[-0, 'x']]);
@@ -348,8 +343,7 @@ describe('HashMap Map conformance', () => {
       expect([...map.keys()].length).toBe(50);
     });
 
-    // BUG: size is a plain writable field; native Map exposes it as a getter-only accessor.
-    test.failing('size cannot be overwritten by consumers', () => {
+    test('size cannot be overwritten by consumers', () => {
       const map = new HashMap<string, number>([['a', 1]]);
       try {
         (map as any).size = 100;
@@ -373,15 +367,13 @@ describe('HashMap Map conformance', () => {
       expect(b.size).toBe(0);
     });
 
-    // BUG: [Symbol.toStringTag] is declared but never assigned, so it is undefined at runtime.
-    test.failing('has a string Symbol.toStringTag', () => {
+    test('has a string Symbol.toStringTag', () => {
       const map = new HashMap();
       expect(typeof map[Symbol.toStringTag]).toBe('string');
       expect(['Map', 'HashMap']).toContain(map[Symbol.toStringTag]);
     });
 
-    // BUG: without a toStringTag, Object.prototype.toString reports [object Object].
-    test.failing('Object.prototype.toString reports a Map-like tag', () => {
+    test('Object.prototype.toString reports a Map-like tag', () => {
       const tag = Object.prototype.toString.call(new HashMap());
       expect(['[object Map]', '[object HashMap]']).toContain(tag);
     });
@@ -548,8 +540,7 @@ describe('HashMap Map conformance', () => {
       for (let i = 0; i < 64; i++) expect(map.get(i)).toBe(i);
     });
 
-    // BUG: capacity 0 rounds to 2^-Infinity = 0; resize doubles 0 to 0, so entries are counted but unreachable.
-    test.failing('capacity option 0 still stores and retrieves entries', () => {
+    test('capacity option 0 still stores and retrieves entries', () => {
       const map = new HashMap<number, number>({ capacity: 0 });
       for (let i = 0; i < 5; i++) map.set(i, i);
       expect(map.size).toBe(5);
@@ -681,9 +672,7 @@ describe('HashMap Map conformance', () => {
       }
     });
 
-    // BUG: iterators capture the table array at creation; clear() swaps in a new table, so a
-    // pre-existing iterator keeps yielding entries that are no longer in the map.
-    test.failing('a live iterator observes clear()', () => {
+    test('a live iterator observes clear()', () => {
       const map = new HashMap<number, number>([[1, 1], [2, 2]]);
       const it = map.entries();
       map.clear();

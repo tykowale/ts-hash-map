@@ -122,14 +122,12 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a)).not.toBe(getHashCode(b));
     });
 
-    // BUG: number hash is the raw value, so NaN hashes to NaN; HashMap compares node.hash === hash, which can never match NaN.
-    test.failing('NaN hash is comparable to itself with ===', () => {
+    test('NaN hash is comparable to itself with ===', () => {
       const h = getHashCode(NaN);
       expect(h === getHashCode(NaN)).toBe(true);
     });
 
-    // BUG: invalid Date hashes to getTime() === NaN, so the same Date reference can never be found by HashMap (hash !== hash).
-    test.failing('invalid Date hash is comparable to itself with ===', () => {
+    test('invalid Date hash is comparable to itself with ===', () => {
       const d = new Date('invalid');
       expect(isEqual(d, d)).toBe(true);
       expect(getHashCode(d) === getHashCode(d)).toBe(true);
@@ -242,8 +240,7 @@ describe('getHashCode edge cases', () => {
       expect(!isEqual(a, b) || getHashCode(a) === getHashCode(b)).toBe(true);
     });
 
-    // BUG: getMapHashCode folds entries with order-dependent `hash ^= hash*31 + k + v`, but isEqual ignores Map insertion order.
-    test.failing.each<[string, unknown, unknown]>([
+    test.each<[string, unknown, unknown]>([
       ['reordered Map entries (primitive keys)', new Map([[1, 'a'], [2, 'b']]), new Map([[2, 'b'], [1, 'a']])],
       [
         'reordered Map entries (object values)',
@@ -260,8 +257,7 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a) === getHashCode(b)).toBe(true);
     });
 
-    // BUG: the refs array is shared across siblings and never popped, so a repeated (non-circular) reference hashes as 0 the second time.
-    test.failing('[x, x] (same ref twice) hashes like [copyA, copyB]', () => {
+    test('[x, x] (same ref twice) hashes like [copyA, copyB]', () => {
       const x = { id: 7, tags: ['a'] };
       const a = [x, x];
       const b = [{ id: 7, tags: ['a'] }, { id: 7, tags: ['a'] }];
@@ -269,8 +265,7 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a)).toBe(getHashCode(b));
     });
 
-    // BUG: same shared-refs issue for object property values: the second occurrence of a shared reference contributes 0.
-    test.failing('{ p: x, q: x } hashes like { p: copyA, q: copyB }', () => {
+    test('{ p: x, q: x } hashes like { p: copyA, q: copyB }', () => {
       const x = { v: [1, 2, 3] };
       const a = { p: x, q: x };
       const b = { p: { v: [1, 2, 3] }, q: { v: [1, 2, 3] } };
@@ -278,8 +273,7 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a)).toBe(getHashCode(b));
     });
 
-    // BUG: shared-refs issue across Map values: a repeated value reference is treated as circular and hashes to 0.
-    test.failing('Map with repeated value ref hashes like Map with equal copies', () => {
+    test('Map with repeated value ref hashes like Map with equal copies', () => {
       const v = { n: 1 };
       const a = new Map([['a', v], ['b', v]]);
       const b = new Map([['a', { n: 1 }], ['b', { n: 1 }]]);
@@ -287,8 +281,7 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a)).toBe(getHashCode(b));
     });
 
-    // BUG: cycles are hashed as 0 at the revisit point, so a 1-cycle and an equivalent 2-cycle (which isEqual accepts) hash differently.
-    test.failing('equivalent cycles of different length hash the same', () => {
+    test('equivalent cycles of different length hash the same', () => {
       const a: any = {};
       a.next = a;
       const b: any = {};
@@ -297,9 +290,8 @@ describe('getHashCode edge cases', () => {
       expect(getHashCode(a)).toBe(getHashCode(b));
     });
 
-    // BUG: isEqual falls through to isObjectEqual for mismatched types / compares only key counts, so these pairs are "equal" but hash differently (root cause in isEqual).
     // Asserted as an implication: the test passes once either isEqual rejects the pair or the hashes agree.
-    test.failing.each<[string, unknown, unknown]>([
+    test.each<[string, unknown, unknown]>([
       ['array vs array-like object', [1, 2], { 0: 1, 1: 2 }],
       ['Date vs empty object', new Date(5), {}],
       ['non-empty Map vs empty object', new Map([[1, 2]]), {}],
@@ -362,8 +354,7 @@ describe('getHashCode edge cases', () => {
       expect(countCollisions(Array.from({ length: N }, (_, i) => ({ id: i })))).toBeLessThanOrEqual(maxCollisions);
     });
 
-    // BUG: getObjectHashCode mixes entries with `hash ^= hash*31 + ...`, which cancels bits; {x, y} for x,y in 0..31 collides ~5.4% (55/1024).
-    test.failing('distinct two-field objects have few collisions', () => {
+    test('distinct two-field objects have few collisions', () => {
       const objs: unknown[] = [];
       for (let x = 0; x < 32; x++) {
         for (let y = 0; y < 32; y++) {
