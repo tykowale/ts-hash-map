@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { HashMap } from './hash-map';
 import { getHashCode } from './hash';
 
@@ -154,24 +155,24 @@ describe('HashMap collisions and resizing', () => {
       ['negative zero', -0],
     ];
 
-    test.each(hashes)('%s hash (%p): set/get/has/delete work', (_label, h) => {
+    test.each(hashes)('%s hash (%s): set/get/has/delete work', (_label, h) => {
       const map = new HashMap<string, number>({ hashFn: () => h });
       map.set('x', 1).set('y', 2);
       expect(map.get('x')).toBe(1);
       expect(map.get('y')).toBe(2);
       expect(map.has('missing')).toBe(false);
-      const table = tableOf(map as any);
+      const table = tableOf(map);
       const used = table.map((n, i) => (n ? i : -1)).filter((i) => i >= 0);
       expect(used.length).toBe(1);
       expect(used[0]).toBeGreaterThanOrEqual(0);
-      expect(used[0]).toBeLessThan(capacityOf(map as any));
+      expect(used[0]).toBeLessThan(capacityOf(map));
       expect(indicesInRange(map as any)).toBe(true);
       expect(map.delete('x')).toBe(true);
       expect(map.get('x')).toBeUndefined();
       expect(map.size).toBe(1);
     });
 
-    test.each(hashes)('%s hash (%p): survives resizes', (_label, h) => {
+    test.each(hashes)('%s hash (%s): survives resizes', (_label, h) => {
       const map = new HashMap<number, number>({ hashFn: () => h, capacity: 2 });
       for (let i = 0; i < 40; i++) map.set(i, i);
       expect(map.size).toBe(40);
@@ -229,7 +230,7 @@ describe('HashMap collisions and resizing', () => {
       words.forEach((w, i) => map.set(w, i));
       expect(map.size).toBe(256);
       words.forEach((w, i) => expect(map.get(w)).toBe(i));
-      expect(map.has('AaAaAaAaAaAaAaAa' + 'x')).toBe(false);
+      expect(map.has('AaAaAaAaAaAaAaAax')).toBe(false);
       words.filter((_, i) => i % 2 === 0).forEach((w) => expect(map.delete(w)).toBe(true));
       expect(map.size).toBe(128);
       words.forEach((w, i) => expect(map.has(w)).toBe(i % 2 === 1));
@@ -265,7 +266,7 @@ describe('HashMap collisions and resizing', () => {
       [100, 128],
       [1000, 1024],
       [2.5, 4],
-    ])('capacity %p rounds up to %p', (input, expected) => {
+    ])('capacity %s rounds up to %s', (input, expected) => {
       const map = new HashMap({ capacity: input });
       expect(capacityOf(map as any)).toBe(expected);
       expect(tableOf(map as any).length).toBe(expected);
@@ -310,7 +311,13 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('capacity is respected when initial values are also provided', () => {
-      const map = new HashMap<number, number>([[1, 1], [2, 2]], { capacity: 64 });
+      const map = new HashMap<number, number>(
+        [
+          [1, 1],
+          [2, 2],
+        ],
+        { capacity: 64 },
+      );
       expect(capacityOf(map as any)).toBe(64);
       expect(map.size).toBe(2);
     });
@@ -325,7 +332,7 @@ describe('HashMap collisions and resizing', () => {
       [1, 16, 16],
       [2, 16, 32],
       [4, 8, 32],
-    ])('loadFactor %p with capacity %p resizes after %p entries', (lf, cap, fit) => {
+    ])('loadFactor %s with capacity %s resizes after %s entries', (lf, cap, fit) => {
       const map = new HashMap<number, number>({ capacity: cap, loadFactor: lf });
       for (let i = 0; i < fit; i++) map.set(i, i);
       expect(capacityOf(map as any)).toBe(cap);
@@ -357,9 +364,9 @@ describe('HashMap collisions and resizing', () => {
       const map = new HashMap<number, number>();
       const seen: Array<[number, number]> = [];
       for (let i = 1; i <= 200; i++) {
-        const before = capacityOf(map as any);
+        const before = capacityOf(map);
         map.set(i, i);
-        const after = capacityOf(map as any);
+        const after = capacityOf(map);
         if (after !== before) seen.push([map.size, after]);
         expect(map.size).toBeLessThanOrEqual(after * 0.75);
       }
@@ -403,11 +410,11 @@ describe('HashMap collisions and resizing', () => {
 
     test('size and all entries are preserved after each successive resize', () => {
       const map = new HashMap<string, number>({ capacity: 2 });
-      let lastCap = capacityOf(map as any);
+      let lastCap = capacityOf(map);
       let resizes = 0;
       for (let i = 0; i < 3000; i++) {
         map.set(`k${i}`, i);
-        const cap = capacityOf(map as any);
+        const cap = capacityOf(map);
         if (cap !== lastCap) {
           expect(cap).toBe(lastCap * 2);
           resizes++;
@@ -423,8 +430,8 @@ describe('HashMap collisions and resizing', () => {
     test('every node sits in the bucket its hash maps to after resizing', () => {
       const map = new HashMap<number, number>({ capacity: 2 });
       for (let i = -500; i < 500; i++) map.set(i * 7, i);
-      const cap = capacityOf(map as any);
-      tableOf(map as any).forEach((head, idx) => {
+      const cap = capacityOf(map);
+      tableOf(map).forEach((head, idx) => {
         let node: any = head;
         while (node) {
           expect(node.hash & (cap - 1)).toBe(idx);
@@ -437,7 +444,7 @@ describe('HashMap collisions and resizing', () => {
       const map = new HashMap<number, number>({ capacity: 3, loadFactor: 0.6 });
       for (let i = 0; i < 1000; i++) {
         map.set(i, i);
-        const cap = capacityOf(map as any);
+        const cap = capacityOf(map);
         expect(cap & (cap - 1)).toBe(0);
       }
     });
@@ -445,7 +452,7 @@ describe('HashMap collisions and resizing', () => {
     test('deleting never shrinks capacity', () => {
       const map = new HashMap<number, number>();
       for (let i = 0; i < 100; i++) map.set(i, i);
-      const cap = capacityOf(map as any);
+      const cap = capacityOf(map);
       for (let i = 0; i < 100; i++) map.delete(i);
       expect(map.size).toBe(0);
       expect(capacityOf(map as any)).toBe(cap);
@@ -465,7 +472,9 @@ describe('HashMap collisions and resizing', () => {
       expect(capacityOf(map as any)).toBe(32);
       expect(map.size).toBe(13);
       for (let i = 1; i < 6; i++) expect(map.has(i)).toBe(false);
-      [0, 6, 7, 8, 9, 10, 11, 100, 101, 102, 103, 104, 105].forEach((k) => expect(map.get(k)).toBe(k));
+      [0, 6, 7, 8, 9, 10, 11, 100, 101, 102, 103, 104, 105].forEach((k) =>
+        expect(map.get(k)).toBe(k),
+      );
       // delete and re-add the same keys after the resize
       [6, 100, 0].forEach((k) => expect(map.delete(k)).toBe(true));
       [6, 100, 0].forEach((k) => map.set(k, -k));
@@ -476,7 +485,7 @@ describe('HashMap collisions and resizing', () => {
     test('clear() keeps the current (grown) capacity and the map is reusable', () => {
       const map = new HashMap<number, number>();
       for (let i = 0; i < 100; i++) map.set(i, i);
-      const cap = capacityOf(map as any);
+      const cap = capacityOf(map);
       expect(cap).toBe(256);
       map.clear();
       expect(map.size).toBe(0);
@@ -615,7 +624,11 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('case-insensitive keys survive resizes', () => {
-      const map = new HashMap<string, number>({ hashFn: lowerHash, equalsFn: ciEquals, capacity: 2 });
+      const map = new HashMap<string, number>({
+        hashFn: lowerHash,
+        equalsFn: ciEquals,
+        capacity: 2,
+      });
       for (let i = 0; i < 300; i++) map.set(`Key${i}`, i);
       for (let i = 0; i < 300; i++) map.set(`KEY${i}`, i + 1);
       expect(map.size).toBe(300);
@@ -632,7 +645,7 @@ describe('HashMap collisions and resizing', () => {
 
     test('equalsFn is invoked with the stored key and the lookup key', () => {
       const calls: Array<[unknown, unknown]> = [];
-      const equalsFn = jest.fn((a: unknown, b: unknown) => {
+      const equalsFn = vi.fn((a: unknown, b: unknown) => {
         calls.push([a, b]);
         return a === b;
       });
@@ -651,9 +664,14 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is not called when hashes differ (hash short-circuit)', () => {
-      const equalsFn = jest.fn((a: unknown, b: unknown) => a === b);
+      const equalsFn = vi.fn((a: unknown, b: unknown) => a === b);
       // identity hash on small ints, all in the same bucket via loadFactor/capacity
-      const map = new HashMap<number, number>({ hashFn: (k) => k as number, equalsFn, capacity: 1, loadFactor: 100 });
+      const map = new HashMap<number, number>({
+        hashFn: (k) => k as number,
+        equalsFn,
+        capacity: 1,
+        loadFactor: 100,
+      });
       for (let i = 0; i < 10; i++) map.set(i, i);
       equalsFn.mockClear();
       expect(map.get(3)).toBe(3);
@@ -665,7 +683,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is called for every same-hash node until a match', () => {
-      const equalsFn = jest.fn((a: unknown, b: unknown) => a === b);
+      const equalsFn = vi.fn((a: unknown, b: unknown) => a === b);
       const map = new HashMap<number, number>({ hashFn: constantHash, equalsFn });
       for (let i = 0; i < 5; i++) map.set(i, i);
       equalsFn.mockClear();
@@ -674,7 +692,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is never called on an empty bucket', () => {
-      const equalsFn = jest.fn(() => true);
+      const equalsFn = vi.fn(() => true);
       const map = new HashMap<number, number>({ equalsFn });
       map.get(1);
       map.has(2);
@@ -700,7 +718,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('hashFn is called once per operation', () => {
-      const hashFn = jest.fn((v: unknown) => getHashCode(v));
+      const hashFn = vi.fn((v: unknown) => getHashCode(v));
       const map = new HashMap<string, number>({ hashFn });
       map.set('a', 1);
       map.get('a');
@@ -710,7 +728,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('hashFn is not re-invoked during resize (cached hash is used)', () => {
-      const hashFn = jest.fn((v: unknown) => v as number);
+      const hashFn = vi.fn((v: unknown) => v as number);
       const map = new HashMap<number, number>({ hashFn, capacity: 1 });
       for (let i = 0; i < 100; i++) map.set(i, i);
       expect(hashFn).toHaveBeenCalledTimes(100);

@@ -12,12 +12,22 @@ established pattern to efficiently create a `Map` using deep equality.
 - [Usage](#usage)
 - [Breaking changes in v2](#breaking-changes-in-v2)
 - [Benchmarks](#benchmarks)
+- [Development](#development)
 
 ## Installation
 
 To use the HashMap class in your projects, you can install it via npm:
+
 ```bash
 npm install @tykowale/ts-hash-map
+```
+
+The package ships both ES modules and CommonJS, each with its own type declarations, and has no
+runtime dependencies. It requires Node.js 22 or newer.
+
+```ts
+import { HashMap } from '@tykowale/ts-hash-map'; // ESM
+const { HashMap } = require('@tykowale/ts-hash-map'); // CommonJS
 ```
 
 ## Usage
@@ -86,6 +96,7 @@ map.size; // returns 1
 #### getOrDefault
 
 Sometimes you want a default value instead of having to check for an undefined value
+
 ```ts
 const map = new HashMap<string, number>();
 
@@ -95,6 +106,7 @@ map.getOrDefault('hello', 'world'); // returns 'world'
 #### getOrThrow
 
 Sometimes you know an element should exist and do not want to deal with an undefined check
+
 ```ts
 const map = new HashMap<string, number>();
 
@@ -113,8 +125,10 @@ v2 makes `HashMap` behave like the native `Map` wherever value-equality allows, 
 - Iteration is **live**, with native `Map` semantics: entries added during iteration are visited, entries deleted
   before being reached are skipped, and a resize mid-iteration no longer skips or repeats entries.
 - `clear()` ends any in-progress iteration, and an iterator created before `clear()` yields nothing afterwards.
-- The internal `HashMapKeysIterable` / `HashMapValuesIterable` modules were removed; `keys()` and `values()`
-  still return `IterableIterator`s.
+- The internal `HashMapKeysIterable` / `HashMapValuesIterable` modules were removed. `keys()`, `values()`,
+  `entries()` and `[Symbol.iterator]()` are now typed as `MapIterator`, like `Map`, and inherit from the built-in
+  `Iterator`, so iterator helpers such as `map`, `filter`, `take` and `toArray` work on them. The typings need
+  TypeScript 5.6 or newer.
 
 #### Keys
 
@@ -158,11 +172,13 @@ v2 makes `HashMap` behave like the native `Map` wherever value-equality allows, 
 
 ## Benchmarks
 
-Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map. 
-These benchmarks are for Map<string, string> so an all primitive comparison 
+The benchmark scripts live in `bench/` and run with `npm run benchmark` and `npm run object-benchmark`.
+
+Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map.
+These benchmarks are for Map<string, string> so an all primitive comparison
 
 | Title             | Total Time (ms) | Time per Operation (ms) | Operations per Second |
-|-------------------|-----------------|-------------------------|-----------------------|
+| ----------------- | --------------- | ----------------------- | --------------------- |
 | Hash Map Set      | 1056            | 0.0001056000            | 9,469,696             |
 | Hash Map Get      | 408             | 0.0000408000            | 24,509,803            |
 | Hash Map Update   | 1376            | 0.0001376000            | 7,267,441             |
@@ -172,21 +188,36 @@ These benchmarks are for Map<string, string> so an all primitive comparison
 | Native Map Update | 332             | 0.0000332000            | 30,120,481            |
 | Native Map Delete | 35              | 0.0000035000            | 285,714,285           |
 
-
 These benchmarks are for Map<CustomObject, string>. It assumes to store the object in the map
 you want deep equality so we use [fast-json-stable-stringify](https://www.npmjs.com/package/fast-json-stable-stringify) then store
 it in the native map as Map<string, string>. This is done with only 10,000 iterations so total time is not apples
 to apples with the above table.
 
-| Title               | Total Time (ms) | Time per Operation (ms) | Operations per Second |
-|---------------------|-----------------|-------------------------|-----------------------|
-| Hash Map Set        | 339             | 0.0003390000            | 2,949,852             |
-| Hash Map Get        | 282             | 0.0002820000            | 3,546,099             |
-| Hash Map Update     | 319             | 0.0003190000            | 3,134,796             |
-| Hash Map Delete     | 268             | 0.0002680000            | 3,731,343             |
-| Native Map Set      | 1510            | 0.0015100000            | 662,251               |
-| Native Map Get      | 1247            | 0.0012470000            | 801,924               |
-| Native Map Update   | 1634            | 0.0016340000            | 611,995               |
-| Native Map Delete   | 1075            | 0.0010750000            | 930,232               |
+| Title             | Total Time (ms) | Time per Operation (ms) | Operations per Second |
+| ----------------- | --------------- | ----------------------- | --------------------- |
+| Hash Map Set      | 339             | 0.0003390000            | 2,949,852             |
+| Hash Map Get      | 282             | 0.0002820000            | 3,546,099             |
+| Hash Map Update   | 319             | 0.0003190000            | 3,134,796             |
+| Hash Map Delete   | 268             | 0.0002680000            | 3,731,343             |
+| Native Map Set    | 1510            | 0.0015100000            | 662,251               |
+| Native Map Get    | 1247            | 0.0012470000            | 801,924               |
+| Native Map Update | 1634            | 0.0016340000            | 611,995               |
+| Native Map Delete | 1075            | 0.0010750000            | 930,232               |
 
+## Development
 
+The toolchain is TypeScript 7, [vitest](https://vitest.dev), [oxlint](https://oxc.rs/docs/guide/usage/linter),
+[oxfmt](https://oxc.rs/docs/guide/usage/formatter) and [tsdown](https://tsdown.dev). Use Node.js 22 or newer
+(`.node-version` pins the version used for development).
+
+```bash
+npm install
+npm run check        # typecheck, lint, format check, tests, build and package checks
+npm test             # run the tests once (npm run test:watch to watch)
+npm run coverage     # tests with v8 coverage
+npm run typecheck    # tsc -b
+npm run lint         # oxlint (npm run lint:fix to apply fixes)
+npm run format       # oxfmt (npm run format:check to verify only)
+npm run build        # bundle to dist/ with tsdown, then run publint and attw
+npm run test:package # typecheck and smoke test the built dist/ as a consumer would
+```

@@ -1,6 +1,6 @@
 import stringify from 'fast-json-stable-stringify';
-import { v4 as uuidv4 } from 'uuid';
-import { HashMap } from './hash-map';
+import { randomUUID as uuidv4 } from 'node:crypto';
+import { HashMap } from '../src/index.ts';
 
 const iterations = 10000;
 const maxSize = 100;
@@ -8,14 +8,14 @@ const keys = generateFakeUserObject(maxSize);
 const results: any[] = [];
 
 type User = {
-  id: string,
+  id: string;
   name: string;
   username: string;
   email: string;
   someOtherField: string;
   permissions: string[];
   active: boolean;
-}
+};
 
 function generateFakeUserObject(size: number): User[] {
   const res = [];
@@ -28,10 +28,7 @@ function generateFakeUserObject(size: number): User[] {
       username: 'tykowale',
       email: 'ty@foobar.com',
       someOtherField: `${id} plus some stuff`,
-      permissions: [
-        'admin',
-        'moderator',
-      ],
+      permissions: ['admin', 'moderator'],
       active: true,
     });
   }
@@ -68,38 +65,40 @@ function testHashMap(): void {
     hashMapSet.push(mapSet);
     hashMapUpdate.push(mapUpdate);
     hashMapDelete.push(mapDelete);
-    mapSet.set(keys[i], `value_${keys[i]}`);
-    mapUpdate.set(keys[i], `value_${keys[i]}`);
-    mapDelete.set(keys[i], `value_${keys[i]}`);
+    // keys has maxSize entries; cycle through them for every map
+    const key = keys[i % keys.length]!;
+    mapSet.set(key, `value_${key}`);
+    mapUpdate.set(key, `value_${key}`);
+    mapDelete.set(key, `value_${key}`);
   }
 
   benchmarkOperation('hash map set', () => {
-    hashMapSet.forEach(map => {
-      keys.forEach(key => {
+    hashMapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.set(key, `value_${key}`);
       });
     });
   });
 
   benchmarkOperation('hash map get', () => {
-    hashMapSet.forEach(map => {
-      keys.forEach(key => {
+    hashMapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.get(key);
       });
     });
   });
 
   benchmarkOperation('hash map update', () => {
-    hashMapUpdate.forEach(map => {
-      keys.forEach(key => {
+    hashMapUpdate.forEach((map) => {
+      keys.forEach((key) => {
         map.set(key, `new_value_${key}`);
       });
     });
   });
 
   benchmarkOperation('hash map delete', () => {
-    hashMapDelete.forEach(map => {
-      keys.forEach(key => {
+    hashMapDelete.forEach((map) => {
+      keys.forEach((key) => {
         map.delete(key);
       });
     });
@@ -125,38 +124,37 @@ function testMap(): void {
   }
 
   benchmarkOperation('native map set', () => {
-    mapSet.forEach(map => {
-      keys.forEach(key => {
+    mapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.set(stringify(key), `value_${key}`);
       });
     });
   });
 
   benchmarkOperation('native map get', () => {
-    mapSet.forEach(map => {
-      keys.forEach(key => {
+    mapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.get(stringify(key));
       });
     });
   });
 
   benchmarkOperation('native map update', () => {
-    mapUpdate.forEach(map => {
-      keys.forEach(key => {
+    mapUpdate.forEach((map) => {
+      keys.forEach((key) => {
         map.set(stringify(key), `new_value_${key}`);
       });
     });
   });
 
   benchmarkOperation('native map delete', () => {
-    mapDelete.forEach(map => {
-      keys.forEach(key => {
+    mapDelete.forEach((map) => {
+      keys.forEach((key) => {
         map.delete(stringify(key));
       });
     });
   });
 }
-
 
 function runTests(): void {
   console.log('Running Tests....');

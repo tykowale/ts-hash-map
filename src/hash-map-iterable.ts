@@ -33,15 +33,30 @@ export function nextLiveNode<K, V>(
   return current === undefined ? source.head : current.after;
 }
 
-export class HashMapIterable<K, V, T> implements IterableIterator<T> {
+/**
+ * Iterator returned by `keys()`, `values()`, `entries()` and `[Symbol.iterator]()`.
+ *
+ * It extends the built-in `Iterator` class so instances inherit the iterator
+ * helpers (`map`, `filter`, `take`, `toArray`, ...) and, where the runtime
+ * provides it, `[Symbol.dispose]`, just like native Map iterators. That keeps it
+ * structurally compatible with `MapIterator<T>`, which `Map<K, V>` requires.
+ */
+export class HashMapIterable<K, V, T>
+  extends Iterator<T, BuiltinIteratorReturn, unknown>
+  implements MapIterator<T>
+{
   private current: Node<K, V> | undefined = undefined;
   private source: OrderedNodeSource<K, V> | undefined;
 
-  constructor(source: OrderedNodeSource<K, V>, private readonly kind: IterationKind) {
+  constructor(
+    source: OrderedNodeSource<K, V>,
+    private readonly kind: IterationKind,
+  ) {
+    super();
     this.source = source;
   }
 
-  next(): IteratorResult<T> {
+  override next(): IteratorResult<T, BuiltinIteratorReturn> {
     const source = this.source;
 
     if (source === undefined) {
@@ -69,7 +84,7 @@ export class HashMapIterable<K, V, T> implements IterableIterator<T> {
     }
   }
 
-  [Symbol.iterator](): IterableIterator<T> {
+  override [Symbol.iterator](): MapIterator<T> {
     return this;
   }
 }

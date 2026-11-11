@@ -1,0 +1,17 @@
+{
+  // Typechecks the built package (dist/) the way a consumer would see it: the
+  // newest standard lib, Node types, and skipLibCheck off so errors inside our
+  // .d.ts files surface. esnext.collection (Map getOrInsert, not yet shipped in
+  // Node) is left out because HashMap does not implement that proposal yet.
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["es2025", "esnext.disposable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": false,
+    "noEmit": true
+  },
+  "include": ["*.mts", "*.cts"]
+}

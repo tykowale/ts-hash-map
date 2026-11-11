@@ -83,13 +83,13 @@ function getBooleanHashCode(value: boolean): number {
 }
 
 function getStringHashCode(value: string): number {
-  let hash = 0;
+  let h = 0;
 
   for (let i = 0; i < value.length; i++) {
-    hash = (Math.imul(hash, 31) + value.charCodeAt(i)) | 0;
+    h = (Math.imul(h, 31) + value.charCodeAt(i)) | 0;
   }
 
-  return hash;
+  return h;
 }
 
 /** SameValueZero-consistent number hash */
@@ -103,7 +103,7 @@ function getNumberHashCode(value: number): number {
     return NAN_HASH;
   }
   f64[0] = value;
-  return fmix(u32[0] ^ Math.imul(u32[1], 0x9e3779b1));
+  return fmix(u32[0]! ^ Math.imul(u32[1]!, 0x9e3779b1));
 }
 
 function getPrimitiveHashCode(value: unknown): number {
@@ -162,18 +162,18 @@ function hashObjectProps(value: any, tag: number, ctx: Ctx, depth: number): numb
   if (depth === ctx.maxDepth) {
     // shallow: key names only
     for (let i = 0; i < keys.length; i++) {
-      acc = (acc + fmix(getStringHashCode(keys[i]))) | 0;
+      acc = (acc + fmix(getStringHashCode(keys[i]!))) | 0;
     }
     for (let i = 0; i < syms.length; i++) {
       acc = (acc + fmix(getPrimitiveHashCode(syms[i]))) | 0;
     }
   } else {
     for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
+      const key = keys[i]!;
       acc = (acc + pairHash(getStringHashCode(key), hash(value[key], ctx, depth))) | 0;
     }
     for (let i = 0; i < syms.length; i++) {
-      const sym = syms[i];
+      const sym = syms[i]!;
       acc = (acc + pairHash(getPrimitiveHashCode(sym), hash(value[sym], ctx, depth))) | 0;
     }
   }
@@ -216,7 +216,7 @@ function hashBytes(bytes: Uint8Array): number {
   const len = bytes.length;
   let h = combine(TAG_BYTES, len);
   for (let i = 0; i < len; i++) {
-    h = combine(h, bytes[i]);
+    h = combine(h, bytes[i]!);
   }
   return fmix(h);
 }
@@ -279,14 +279,21 @@ function hashLeafObject(value: object, proto: unknown): number | undefined {
       return fmix(combine(TAG_DATE, getNumberHashCode((value as Date).getTime())));
     case '[object RegExp]': {
       const re = value as RegExp;
-      return fmix(combine(combine(TAG_REGEXP, getStringHashCode(re.source)), getStringHashCode(re.flags)));
+      return fmix(
+        combine(combine(TAG_REGEXP, getStringHashCode(re.source)), getStringHashCode(re.flags)),
+      );
     }
     case '[object Number]':
     case '[object String]':
     case '[object Boolean]':
     case '[object BigInt]':
     case '[object Symbol]':
-      return fmix(combine(combine(TAG_BOXED, getStringHashCode(tag)), getPrimitiveHashCode((value as any).valueOf())));
+      return fmix(
+        combine(
+          combine(TAG_BOXED, getStringHashCode(tag)),
+          getPrimitiveHashCode((value as any).valueOf()),
+        ),
+      );
     case '[object ArrayBuffer]':
     case '[object SharedArrayBuffer]':
       return hashBytes(new Uint8Array(value as ArrayBuffer));
@@ -308,7 +315,13 @@ function hashLeafObject(value: object, proto: unknown): number | undefined {
 }
 
 // dispatches the two common kinds directly (one stack frame less per nesting level)
-function hashKnownContainer(value: object, proto: unknown, plain: boolean, ctx: Ctx, depth: number): number {
+function hashKnownContainer(
+  value: object,
+  proto: unknown,
+  plain: boolean,
+  ctx: Ctx,
+  depth: number,
+): number {
   if (plain) {
     return hashObjectProps(value, TAG_OBJECT, ctx, depth);
   }
@@ -378,7 +391,14 @@ export function getHashCode(value: unknown): number {
     return getPrimitiveHashCode(value);
   }
 
-  const ctx: Ctx = { stack: [], cyclic: false, maxDepth: -1, count: 0, budget: Infinity, memo: undefined };
+  const ctx: Ctx = {
+    stack: [],
+    cyclic: false,
+    maxDepth: -1,
+    count: 0,
+    budget: Infinity,
+    memo: undefined,
+  };
   const result = hash(value, ctx, -1);
   if (!ctx.cyclic) {
     return result;

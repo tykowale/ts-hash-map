@@ -1,3 +1,4 @@
+import { describe, expect, it, test } from 'vitest';
 import { isEqual } from './is-equal';
 import { getHashCode } from './hash';
 
@@ -31,7 +32,7 @@ function randomValue(rand: () => number, depth = 0): unknown {
       const obj: Record<string, unknown> = {};
       const n = Math.floor(rand() * 3);
       for (let i = 0; i < n; i++) {
-        obj[['x', 'y', 'z'][i]] = randomValue(rand, depth + 1);
+        obj[['x', 'y', 'z'][i]!] = randomValue(rand, depth + 1);
       }
       return obj;
     }
@@ -272,10 +273,16 @@ describe('isEqual edge cases', () => {
 
   describe('prototypes and class instances', () => {
     class Point {
-      constructor(public x: number, public y: number) {}
+      constructor(
+        public x: number,
+        public y: number,
+      ) {}
     }
     class Vec {
-      constructor(public x: number, public y: number) {}
+      constructor(
+        public x: number,
+        public y: number,
+      ) {}
     }
 
     it('instances of the same class with equal fields are equal', () => {
@@ -371,7 +378,11 @@ describe('isEqual edge cases', () => {
     });
 
     it.each([
-      ['sets of objects', () => new Set([{ id: 1 }, { id: 2 }]), () => new Set([{ id: 1 }, { id: 2 }])],
+      [
+        'sets of objects',
+        () => new Set([{ id: 1 }, { id: 2 }]),
+        () => new Set([{ id: 1 }, { id: 2 }]),
+      ],
       ['maps with object keys', () => new Map([[{ id: 1 }, 1]]), () => new Map([[{ id: 1 }, 1]])],
       ['set inside object', () => ({ s: new Set([[1]]) }), () => ({ s: new Set([[1]]) })],
       ['map inside array', () => [new Map([[[1], 2]])], () => [new Map([[[1], 2]])]],
@@ -459,7 +470,7 @@ describe('isEqual edge cases', () => {
     it.each([
       [/a/g, /a/i, false],
       [/a/g, /a/, false],
-      [/a/gi, /a/ig, true],
+      [/a/gi, /a/gi, true],
       [/a/m, /a/m, true],
       [/a/u, /a/y, false],
       [new RegExp('a', 's'), /a/s, true],
@@ -480,12 +491,20 @@ describe('isEqual edge cases', () => {
 
   describe('functions', () => {
     it('functions with the same source text are equal', () => {
-      const make = () => function add(x: number) { return x + 1; };
+      const make = () =>
+        function add(x: number) {
+          return x + 1;
+        };
       expect(isEqual(make(), make())).toBe(true);
     });
 
     it('functions with different source text are not equal', () => {
-      expect(isEqual((x: number) => x + 1, (x: number) => x + 2)).toBe(false);
+      expect(
+        isEqual(
+          (x: number) => x + 1,
+          (x: number) => x + 2,
+        ),
+      ).toBe(false);
     });
 
     it('documents: closures with the same text but different captured values are equal', () => {
@@ -629,9 +648,12 @@ describe('isEqual edge cases', () => {
       expect(isEqual(nest(depth, 'leaf'), nest(depth, 'leaf'))).toBe(true);
     });
 
-    it.each([10, 100, 1000])('structures differing only at the leaf (%i levels) are not equal', (depth) => {
-      expect(isEqual(nest(depth, 'leaf'), nest(depth, 'other'))).toBe(false);
-    });
+    it.each([10, 100, 1000])(
+      'structures differing only at the leaf (%i levels) are not equal',
+      (depth) => {
+        expect(isEqual(nest(depth, 'leaf'), nest(depth, 'other'))).toBe(false);
+      },
+    );
 
     it('structures of different depth are not equal', () => {
       expect(isEqual(nest(50, 1), nest(51, 1))).toBe(false);
@@ -656,7 +678,7 @@ describe('isEqual edge cases', () => {
       ['reordered object keys', () => ({ a: 1, b: [2] }), () => ({ b: [2], a: 1 })],
       ['reordered Set', () => new Set([1, 2, 3]), () => new Set([3, 2, 1])],
       ['equal dates', () => new Date(5), () => new Date(5)],
-      ['equal regexps', () => /x/gi, () => /x/ig],
+      ['equal regexps', () => /x/gi, () => /x/gi],
       // eslint-disable-next-line no-sparse-arrays
       ['hole vs undefined', () => [, 1], () => [undefined, 1]],
     ])('%s', (_n, fa, fb) => {

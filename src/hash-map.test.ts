@@ -1,8 +1,9 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { HashMap } from './hash-map';
 
 // if you are looking for custom hash/equals functions these are atrocious and should not be used
 const customHashFn = (value: unknown) => (typeof value === 'string' ? value.length : 0);
-const customEqualsFn = (a: unknown, b: unknown) => (a === b);
+const customEqualsFn = (a: unknown, b: unknown) => a === b;
 
 describe('HashMap', () => {
   describe('constructor', () => {
@@ -198,12 +199,20 @@ describe('HashMap', () => {
           res.push(e);
         }
 
-        expect(res).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
+        expect(res).toEqual([
+          [1, 'one'],
+          [2, 'two'],
+          [3, 'three'],
+        ]);
 
         const iterator = hashMap[Symbol.iterator]();
         const res2 = Array.from(iterator);
 
-        expect(res2).toEqual([[1, 'one'], [2, 'two'], [3, 'three']]);
+        expect(res2).toEqual([
+          [1, 'one'],
+          [2, 'two'],
+          [3, 'three'],
+        ]);
       });
     });
 
@@ -226,18 +235,17 @@ describe('HashMap', () => {
 
     it('works with a large number of entries', () => {
       const size = 1000;
-      const hashMap = new HashMap<number, string>();
+      const map = new HashMap<number, string>();
 
       for (let i = 0; i < size; i++) {
-        hashMap.set(i, `value_${i}`);
+        map.set(i, `value_${i}`);
       }
 
       for (let i = 0; i < size; i++) {
-        expect(hashMap.get(i)).toEqual(`value_${i}`);
+        expect(map.get(i)).toEqual(`value_${i}`);
       }
     });
   });
-
 
   describe('object keys', () => {
     let hashMap: HashMap<object, string>;
@@ -339,12 +347,22 @@ describe('HashMap', () => {
         res.push(e);
       }
 
-      expect(res.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
+      expect(res.sort()).toEqual(
+        [
+          [key1, 'value1'],
+          [key2, 'value2'],
+        ].sort(),
+      );
 
       const iterator = hashMap[Symbol.iterator]();
       const res2 = Array.from(iterator);
 
-      expect(res2.sort()).toEqual([[key1, 'value1'], [key2, 'value2']].sort());
+      expect(res2.sort()).toEqual(
+        [
+          [key1, 'value1'],
+          [key2, 'value2'],
+        ].sort(),
+      );
     });
 
     it('calls the callback function for each key-value pair in the hashmap', () => {
@@ -356,8 +374,8 @@ describe('HashMap', () => {
       const keys: { id: number }[] = [];
       const values: string[] = [];
 
-      hashMap.forEach((value, key: { id: number }) => {
-        keys.push(key);
+      hashMap.forEach((value, key) => {
+        keys.push(key as { id: number });
         values.push(value);
       });
 

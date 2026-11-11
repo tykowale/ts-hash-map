@@ -200,7 +200,7 @@ function isObjectEqual(a: any, b: any, stack: Stack): boolean {
   }
 
   for (let i = 0; i < keysA.length; i++) {
-    const key = keysA[i];
+    const key = keysA[i]!;
     // fast path: same key at the same position (counts are equal and keys unique, so it is own
     // enumerable in b); otherwise check own-key membership so {a: undefined} !== {b: undefined}
     if ((keysB[i] !== key && !propIsEnumerable.call(b, key)) || !eq(a[key], b[key], stack)) {
@@ -214,7 +214,7 @@ function isObjectEqual(a: any, b: any, stack: Stack): boolean {
     return false;
   }
   for (let i = 0; i < symsA.length; i++) {
-    const sym = symsA[i];
+    const sym = symsA[i]!;
     if (!propIsEnumerable.call(b, sym) || !eq(a[sym], b[sym], stack)) {
       return false;
     }
@@ -244,7 +244,9 @@ function compareObjects(a: object, b: object, proto: unknown, stack: Stack): boo
       return sameValueZero((a as Date).getTime(), (b as Date).getTime());
     }
     case '[object RegExp]':
-      return (a as RegExp).source === (b as RegExp).source && (a as RegExp).flags === (b as RegExp).flags;
+      return (
+        (a as RegExp).source === (b as RegExp).source && (a as RegExp).flags === (b as RegExp).flags
+      );
     case '[object Map]':
       return isMapEqual(a as Map<unknown, unknown>, b as Map<unknown, unknown>, stack);
     case '[object Set]':
@@ -256,9 +258,11 @@ function compareObjects(a: object, b: object, proto: unknown, stack: Stack): boo
     case '[object Symbol]':
       return sameValueZero((a as any).valueOf(), (b as any).valueOf());
     case '[object Error]':
-      return (a as Error).name === (b as Error).name
-        && (a as Error).message === (b as Error).message
-        && isObjectEqual(a, b, stack);
+      return (
+        (a as Error).name === (b as Error).name &&
+        (a as Error).message === (b as Error).message &&
+        isObjectEqual(a, b, stack)
+      );
     case '[object ArrayBuffer]':
     case '[object SharedArrayBuffer]':
       return isBytesEqual(new Uint8Array(a as ArrayBuffer), new Uint8Array(b as ArrayBuffer));
@@ -338,11 +342,12 @@ function eq(a: unknown, b: unknown, stack: Stack): boolean {
   sa.push(a);
   sb.push(b);
   // plain objects and arrays are dispatched here directly (one stack frame less per level)
-  const result = proto === Object.prototype || proto === null
-    ? isObjectEqual(a, b, stack)
-    : Array.isArray(a)
-      ? Array.isArray(b) && isArrayEqual(a, b as unknown[], stack)
-      : compareObjects(a as object, b as object, proto, stack);
+  const result =
+    proto === Object.prototype || proto === null
+      ? isObjectEqual(a, b, stack)
+      : Array.isArray(a)
+        ? Array.isArray(b) && isArrayEqual(a, b as unknown[], stack)
+        : compareObjects(a as object, b as object, proto, stack);
   sa.pop();
   sb.pop();
 
