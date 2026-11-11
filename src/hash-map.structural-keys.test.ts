@@ -93,8 +93,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectSameKey({ n: 0 }, { n: -0 });
     });
 
-    // BUG: isEqual uses === for primitives, so NaN !== NaN and {v: NaN} can never be found again
-    test.failing('treats NaN property values as equal (SameValueZero)', () => {
+    test('treats NaN property values as equal (SameValueZero)', () => {
       expectSameKey({ v: NaN }, { v: NaN });
     });
   });
@@ -109,8 +108,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys({ a: undefined }, { b: undefined });
     });
 
-    // BUG: isObjectEqual compares a[key] with b[key] without checking b owns key, so {a: undefined} equals {b: undefined} while hashes differ
-    test.failing('{a: undefined} vs {b: undefined} respects the hash/equals contract', () => {
+    test('{a: undefined} vs {b: undefined} respects the hash/equals contract', () => {
       expect(isEqual({ a: undefined }, { b: undefined })).toBe(false);
     });
 
@@ -164,8 +162,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys(new Array(2), new Array(3));
     });
 
-    // BUG: [NaN] hashes to 0 and isEqual(NaN, NaN) is false, so the key can never be found
-    test.failing('array containing NaN can be looked up with a fresh array', () => {
+    test('array containing NaN can be looked up with a fresh array', () => {
       expectSameKey([NaN], [NaN]);
     });
   });
@@ -175,16 +172,14 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys({ 0: 'a' }, ['a']);
     });
 
-    // BUG: isEqual falls through to isObjectEqual for array-vs-object, so isEqual({0:'a'}, ['a']) is true but hashes differ
-    test.failing("{0: 'a'} vs ['a'] respects the hash/equals contract", () => {
+    test("{0: 'a'} vs ['a'] respects the hash/equals contract", () => {
       expect(isEqual({ 0: 'a' }, ['a'])).toBe(false);
       expect(isEqual(['a'], { 0: 'a' })).toBe(false);
     });
   });
 
   describe('empty containers of different types', () => {
-    // BUG: different object kinds with no own enumerable keys fall through to isObjectEqual (true) and their hashes collide
-    test.failing.each([
+    test.each([
       ['{} vs []', {}, []],
       ['{} vs new Map()', {}, new Map()],
       ['new Map() vs new Set()', new Map(), new Set()],
@@ -218,8 +213,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys({ at: new Date(1000) }, { at: new Date(1001) });
     });
 
-    // BUG: invalid Date hashes to NaN (node.hash === hash never true) and isDateEqual compares NaN === NaN, so it can never be found
-    test.failing('invalid Date can be found again', () => {
+    test('invalid Date can be found again', () => {
       const map = new HashMap<Date, number>();
       map.set(new Date('invalid'), 1);
       expect(map.get(new Date('invalid'))).toBe(1);
@@ -260,8 +254,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectSameKey({ tags: new Set(['x', 'y']) }, { tags: new Set(['y', 'x']) });
     });
 
-    // BUG: isSetEqual uses Set.prototype.has (reference equality) for members, so Sets of objects never match fresh literals
-    test.failing('Sets with structurally equal object members are one key', () => {
+    test('Sets with structurally equal object members are one key', () => {
       expectSameKey(new Set([{ id: 1 }]), new Set([{ id: 1 }]));
     });
   });
@@ -275,8 +268,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys(new Map([['a', 1]]), new Map([['a', 2]]));
     });
 
-    // BUG: getMapHashCode folds entries with an order-dependent xor/multiply, so equal Maps in different insertion order hash differently
-    test.failing('Maps with the same entries in different insertion order are one key', () => {
+    test('Maps with the same entries in different insertion order are one key', () => {
       const a = new Map([['a', 1], ['b', 2]]);
       const b = new Map([['b', 2], ['a', 1]]);
       expect(isEqual(a, b)).toBe(true);
@@ -284,8 +276,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectSameKey(a, b);
     });
 
-    // BUG: isMapEqual uses Map.prototype.has (reference equality) for keys, so Maps keyed by objects never match fresh literals
-    test.failing('Maps with structurally equal object keys are one key', () => {
+    test('Maps with structurally equal object keys are one key', () => {
       expectSameKey(new Map([[{ id: 1 }, 'x']]), new Map([[{ id: 1 }, 'x']]));
     });
   });
@@ -389,8 +380,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectSameKey(a, b);
     });
 
-    // BUG: getHashCode's refs list is never popped, so a shared (non-circular) sub-object hashes to 0 on its second visit
-    test.failing('object reusing the same sub-object twice matches an equal tree of copies', () => {
+    test('object reusing the same sub-object twice matches an equal tree of copies', () => {
       const shared = { v: 1 };
       const dag = { a: shared, b: shared };
       const tree = { a: { v: 1 }, b: { v: 1 } };
@@ -399,8 +389,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectSameKey(dag, tree);
     });
 
-    // BUG: isEqual's refs list is never popped and "both already seen" short-circuits to true, so unrelated previously-seen objects compare equal (and the hash also zeroes repeats, so they collide)
-    test.failing('previously visited but unequal sub-objects are not treated as equal', () => {
+    test('previously visited but unequal sub-objects are not treated as equal', () => {
       const x = { v: 1 };
       const y = { v: 2 };
       const a = [x, y, x];
@@ -410,8 +399,7 @@ describe('HashMap structural (value-equality) keys', () => {
       expectDistinctKeys(a, b);
     });
 
-    // BUG: same refs-not-popped issue for arrays: [x, x] hashes differently from [copy, copy]
-    test.failing('array reusing the same element object twice matches an equal array of copies', () => {
+    test('array reusing the same element object twice matches an equal array of copies', () => {
       const x = { v: 1 };
       expectSameKey([x, x], [{ v: 1 }, { v: 1 }]);
     });
