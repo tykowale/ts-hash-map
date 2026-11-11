@@ -20,7 +20,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, mkdirSyn
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { CONFIG_USAGE, checkArgs, exitWithUsage, isHelp, parseConfig } from './lib/config.ts';
-import { PRESET_USAGE, presetArgs } from './lib/presets.ts';
+import { getPreset, PRESET_USAGE, presetArgs, unmatchedPatterns } from './lib/presets.ts';
 import { environment, gitInfo, SCHEMA, type ResultFile } from './lib/report.ts';
 
 const SCENARIO_DIR = join(import.meta.dirname, 'scenarios');
@@ -189,6 +189,24 @@ for (const family of families) {
   }
 }
 rmSync(tmp, { recursive: true, force: true });
+
+if (preset) {
+  const missing = unmatchedPatterns(
+    getPreset(preset),
+    merged.cases.map((c) => `${c.family}/${c.group}`),
+  );
+  if (missing.length > 0) {
+    // --smoke and --sizes change the sizes in the group names, so some patterns cannot match.
+    const partial = config.smoke || config.sizes !== undefined;
+    const msg = `preset ${preset}: ${missing.length} pattern(s) matched no group: ${missing.join(', ')}`;
+    if (partial) {
+      console.warn(`\nwarning: ${msg} (expected with --smoke or --sizes)`);
+    } else {
+      console.error(`\n${msg}`);
+      failed.push(`preset ${preset}`);
+    }
+  }
+}
 
 if (config.out) {
   mkdirSync(dirname(config.out), { recursive: true });

@@ -71,6 +71,18 @@ export function presetFamilies(preset: Preset): string[] {
   return [...new Set(families)].sort();
 }
 
+/**
+ * The preset's patterns that match none of `groupIds` (`family/group`). A renamed group would
+ * otherwise drop out of the preset silently.
+ */
+export function unmatchedPatterns(preset: Preset, groupIds: Iterable<string>): string[] {
+  const ids = [...groupIds];
+  return preset.groups.filter((g) => {
+    const re = new RegExp(`^(${g})$`, 'i');
+    return !ids.some((id) => re.test(id));
+  });
+}
+
 export function presetFilter(preset: Preset): string {
   return `^(${preset.groups.join('|')})$`;
 }
