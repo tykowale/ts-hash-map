@@ -1,0 +1,11 @@
+{
+  // Same check against an older standard lib with no Node types, so the
+  // published .d.ts keeps working for consumers that have not moved to es2025.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2022"],
+    "types": []
+  },
+  "include": ["types.cts"]
+}

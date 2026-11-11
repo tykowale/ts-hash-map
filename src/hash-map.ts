@@ -290,23 +290,23 @@ export class HashMap<K, V> implements Map<K, V> {
     }
   }
 
-  values(): IterableIterator<V> {
+  values(): MapIterator<V> {
     return this.iterator<V>(ITERATE_VALUES);
   }
 
-  [Symbol.iterator](): IterableIterator<[K, V]> {
+  [Symbol.iterator](): MapIterator<[K, V]> {
     return this.iterator<[K, V]>(ITERATE_ENTRIES);
   }
 
-  entries(): IterableIterator<[K, V]> {
+  entries(): MapIterator<[K, V]> {
     return this.iterator<[K, V]>(ITERATE_ENTRIES);
   }
 
-  keys(): IterableIterator<K> {
+  keys(): MapIterator<K> {
     return this.iterator<K>(ITERATE_KEYS);
   }
 
-  private iterator<T>(kind: IterationKind): IterableIterator<T> {
+  private iterator<T>(kind: IterationKind): MapIterator<T> {
     return new HashMapIterable<K, V, T>(this.asSource(), kind);
   }
 

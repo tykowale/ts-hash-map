@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2024",
-    "lib": ["es2024"],
+    "lib": ["es2024", "es2025.iterator"],
     "module": "preserve",
     "moduleResolution": "bundler",
     "moduleDetection": "force",

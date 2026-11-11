@@ -658,4 +658,39 @@ describe('HashMap iteration', () => {
       expect(sortedNums(iter)).toEqual([0, 7]);
     });
   });
+
+  describe('built-in Iterator compatibility', () => {
+    it('iterators inherit from Iterator.prototype like native Map iterators', () => {
+      const m = new HashMap<number, string>([
+        [1, 'a'],
+        [2, 'b'],
+      ]);
+      expect(m.keys()).toBeInstanceOf(Iterator);
+      expect(m.values()).toBeInstanceOf(Iterator);
+      expect(m.entries()).toBeInstanceOf(Iterator);
+      expect(m[Symbol.iterator]()).toBeInstanceOf(Iterator);
+    });
+
+    it('supports iterator helpers', () => {
+      const m = new HashMap<number, string>([
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+      ]);
+      expect(
+        m
+          .keys()
+          .filter((k) => k % 2 === 1)
+          .map((k) => k * 10)
+          .toArray(),
+      ).toEqual([10, 30]);
+      expect(m.values().take(2).toArray()).toEqual(['a', 'b']);
+      expect(m.entries().find(([k]) => k === 2)).toEqual([2, 'b']);
+    });
+
+    it('returns itself from [Symbol.iterator]', () => {
+      const iter = new HashMap<number, number>([[1, 1]]).values();
+      expect(iter[Symbol.iterator]()).toBe(iter);
+    });
+  });
 });
