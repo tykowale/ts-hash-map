@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, lint, format, build
+    name: Typecheck, lint, format, build, package checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,6 +27,7 @@ jobs:
       - run: npm run lint -- -f github
       - run: npm run format:check
       - run: npm run build
+      - run: npm run test:package
 
   test:
     name: Test (Node ${{ matrix.node }})
