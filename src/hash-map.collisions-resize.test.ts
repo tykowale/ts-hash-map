@@ -155,7 +155,7 @@ describe('HashMap collisions and resizing', () => {
       ['negative zero', -0],
     ];
 
-    test.each(hashes)('%s hash (%p): set/get/has/delete work', (_label, h) => {
+    test.each(hashes)('%s hash (%s): set/get/has/delete work', (_label, h) => {
       const map = new HashMap<string, number>({ hashFn: () => h });
       map.set('x', 1).set('y', 2);
       expect(map.get('x')).toBe(1);
@@ -172,7 +172,7 @@ describe('HashMap collisions and resizing', () => {
       expect(map.size).toBe(1);
     });
 
-    test.each(hashes)('%s hash (%p): survives resizes', (_label, h) => {
+    test.each(hashes)('%s hash (%s): survives resizes', (_label, h) => {
       const map = new HashMap<number, number>({ hashFn: () => h, capacity: 2 });
       for (let i = 0; i < 40; i++) map.set(i, i);
       expect(map.size).toBe(40);
@@ -266,7 +266,7 @@ describe('HashMap collisions and resizing', () => {
       [100, 128],
       [1000, 1024],
       [2.5, 4],
-    ])('capacity %p rounds up to %p', (input, expected) => {
+    ])('capacity %s rounds up to %s', (input, expected) => {
       const map = new HashMap({ capacity: input });
       expect(capacityOf(map as any)).toBe(expected);
       expect(tableOf(map as any).length).toBe(expected);
@@ -332,7 +332,7 @@ describe('HashMap collisions and resizing', () => {
       [1, 16, 16],
       [2, 16, 32],
       [4, 8, 32],
-    ])('loadFactor %p with capacity %p resizes after %p entries', (lf, cap, fit) => {
+    ])('loadFactor %s with capacity %s resizes after %s entries', (lf, cap, fit) => {
       const map = new HashMap<number, number>({ capacity: cap, loadFactor: lf });
       for (let i = 0; i < fit; i++) map.set(i, i);
       expect(capacityOf(map as any)).toBe(cap);

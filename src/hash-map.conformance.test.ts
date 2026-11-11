@@ -597,7 +597,7 @@ describe('HashMap Map conformance', () => {
       expect(map.has('b')).toBe(false);
     });
 
-    test.each([1, 2, 3, 5, 100])('capacity option %p still works for many inserts', (capacity) => {
+    test.each([1, 2, 3, 5, 100])('capacity option %s still works for many inserts', (capacity) => {
       const map = new HashMap<number, number>({ capacity });
       for (let i = 0; i < 64; i++) map.set(i, i);
       expect(map.size).toBe(64);
@@ -758,7 +758,7 @@ describe('HashMap Map conformance', () => {
   });
 
   describe('differential vs native Map (primitive keys)', () => {
-    test.each([1, 2, 3, 42, 1337])('random op sequence with seed %p matches native Map', (seed) => {
+    test.each([1, 2, 3, 42, 1337])('random op sequence with seed %s matches native Map', (seed) => {
       const rand = mulberry32(seed);
       const hm = new HashMap<unknown, unknown>({ capacity: 2 });
       const native = new Map<unknown, unknown>();
