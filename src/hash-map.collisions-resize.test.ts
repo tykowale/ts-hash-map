@@ -311,7 +311,13 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('capacity is respected when initial values are also provided', () => {
-      const map = new HashMap<number, number>([[1, 1], [2, 2]], { capacity: 64 });
+      const map = new HashMap<number, number>(
+        [
+          [1, 1],
+          [2, 2],
+        ],
+        { capacity: 64 },
+      );
       expect(capacityOf(map as any)).toBe(64);
       expect(map.size).toBe(2);
     });
@@ -466,7 +472,9 @@ describe('HashMap collisions and resizing', () => {
       expect(capacityOf(map as any)).toBe(32);
       expect(map.size).toBe(13);
       for (let i = 1; i < 6; i++) expect(map.has(i)).toBe(false);
-      [0, 6, 7, 8, 9, 10, 11, 100, 101, 102, 103, 104, 105].forEach((k) => expect(map.get(k)).toBe(k));
+      [0, 6, 7, 8, 9, 10, 11, 100, 101, 102, 103, 104, 105].forEach((k) =>
+        expect(map.get(k)).toBe(k),
+      );
       // delete and re-add the same keys after the resize
       [6, 100, 0].forEach((k) => expect(map.delete(k)).toBe(true));
       [6, 100, 0].forEach((k) => map.set(k, -k));
@@ -616,7 +624,11 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('case-insensitive keys survive resizes', () => {
-      const map = new HashMap<string, number>({ hashFn: lowerHash, equalsFn: ciEquals, capacity: 2 });
+      const map = new HashMap<string, number>({
+        hashFn: lowerHash,
+        equalsFn: ciEquals,
+        capacity: 2,
+      });
       for (let i = 0; i < 300; i++) map.set(`Key${i}`, i);
       for (let i = 0; i < 300; i++) map.set(`KEY${i}`, i + 1);
       expect(map.size).toBe(300);
@@ -654,7 +666,12 @@ describe('HashMap collisions and resizing', () => {
     test('equalsFn is not called when hashes differ (hash short-circuit)', () => {
       const equalsFn = vi.fn((a: unknown, b: unknown) => a === b);
       // identity hash on small ints, all in the same bucket via loadFactor/capacity
-      const map = new HashMap<number, number>({ hashFn: (k) => k as number, equalsFn, capacity: 1, loadFactor: 100 });
+      const map = new HashMap<number, number>({
+        hashFn: (k) => k as number,
+        equalsFn,
+        capacity: 1,
+        loadFactor: 100,
+      });
       for (let i = 0; i < 10; i++) map.set(i, i);
       equalsFn.mockClear();
       expect(map.get(3)).toBe(3);

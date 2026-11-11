@@ -25,12 +25,36 @@ const symB = Symbol('b');
 // Primitive keys whose identity semantics should match native Map exactly.
 // NaN is deliberately covered separately below.
 const primitiveKeys: unknown[] = [
-  0, 1, 2, -1, 1.5, 16, 17, 32, 1e9, 2 ** 40, Infinity, -Infinity,
-  '', '0', '1', '2', 'a', 'true', 'null', 'undefined',
-  true, false,
-  null, undefined,
-  1n, 0n, 2n ** 64n,
-  symA, symA2, symB,
+  0,
+  1,
+  2,
+  -1,
+  1.5,
+  16,
+  17,
+  32,
+  1e9,
+  2 ** 40,
+  Infinity,
+  -Infinity,
+  '',
+  '0',
+  '1',
+  '2',
+  'a',
+  'true',
+  'null',
+  'undefined',
+  true,
+  false,
+  null,
+  undefined,
+  1n,
+  0n,
+  2n ** 64n,
+  symA,
+  symA2,
+  symB,
 ];
 
 /** Asserts that a HashMap holds exactly the same entries as a native Map (order-insensitive). */
@@ -74,7 +98,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('a deleted key can be re-added with a new value', () => {
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]]);
+      const map = new HashMap<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
       map.delete('a');
       expect(map.set('a', 3)).toBe(map);
       expect(map.size).toBe(2);
@@ -229,7 +256,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('-0 and +0 are the same key in the constructor', () => {
-      const map = new HashMap<number, string>([[0, 'a'], [-0, 'b']]);
+      const map = new HashMap<number, string>([
+        [0, 'a'],
+        [-0, 'b'],
+      ]);
       expect(map.size).toBe(1);
       expect(map.get(0)).toBe('b');
     });
@@ -289,7 +319,10 @@ describe('HashMap Map conformance', () => {
 
     test('bigint keys compare by value', () => {
       const map = new HashMap<bigint, string>();
-      map.set(10n, 'ten').set(BigInt(10), 'TEN').set(2n ** 100n, 'big');
+      map
+        .set(10n, 'ten')
+        .set(BigInt(10), 'TEN')
+        .set(2n ** 100n, 'big');
       expect(map.size).toBe(2);
       expect(map.get(10n)).toBe('TEN');
       expect(map.get(2n ** 100n)).toBe('big');
@@ -380,14 +413,21 @@ describe('HashMap Map conformance', () => {
     });
 
     test('Symbol.iterator is the same behaviour as entries()', () => {
-      const map = new HashMap<number, string>([[1, 'a'], [2, 'b'], [3, 'c']]);
+      const map = new HashMap<number, string>([
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+      ]);
       expect([...map[Symbol.iterator]()]).toEqual([...map.entries()]);
     });
   });
 
   describe('forEach', () => {
     test('callback receives (value, key, map)', () => {
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]]);
+      const map = new HashMap<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
       const calls: Array<[number, string, unknown]> = [];
       map.forEach((value, key, m) => calls.push([value, key, m]));
       expect(calls).toHaveLength(2);
@@ -395,7 +435,7 @@ describe('HashMap Map conformance', () => {
         expect(m).toBe(map);
         expect(map.get(key)).toBe(value);
       }
-      expect(calls.map(c => c[1]).sort()).toEqual(['a', 'b']);
+      expect(calls.map((c) => c[1]).sort()).toEqual(['a', 'b']);
     });
 
     test('callback is called with exactly three arguments', () => {
@@ -408,7 +448,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('thisArg is bound inside a regular function callback', () => {
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]]);
+      const map = new HashMap<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
       const ctx = { seen: [] as number[] };
       map.forEach(function (this: typeof ctx, value) {
         this.seen.push(value);
@@ -450,9 +493,11 @@ describe('HashMap Map conformance', () => {
 
     test('errors thrown by the callback propagate', () => {
       const map = new HashMap<string, number>([['a', 1]]);
-      expect(() => map.forEach(() => {
-        throw new RangeError('boom');
-      })).toThrow(RangeError);
+      expect(() =>
+        map.forEach(() => {
+          throw new RangeError('boom');
+        }),
+      ).toThrow(RangeError);
     });
 
     test('forEach visits the same entries as native Map', () => {
@@ -492,7 +537,13 @@ describe('HashMap Map conformance', () => {
 
     test('entries + options', () => {
       const hashFn = vi.fn(() => 7);
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]], { hashFn });
+      const map = new HashMap<string, number>(
+        [
+          ['a', 1],
+          ['b', 2],
+        ],
+        { hashFn },
+      );
       expect(hashFn).toHaveBeenCalled();
       expect(map.size).toBe(2);
       expect(map.get('b')).toBe(2);
@@ -504,7 +555,13 @@ describe('HashMap Map conformance', () => {
     });
 
     test('duplicate keys in initial entries: last wins, size counts unique', () => {
-      const entries: Array<[string, number]> = [['a', 1], ['b', 2], ['a', 3], ['a', 4], ['b', 5]];
+      const entries: Array<[string, number]> = [
+        ['a', 1],
+        ['b', 2],
+        ['a', 3],
+        ['a', 4],
+        ['b', 5],
+      ];
       const map = new HashMap<string, number>(entries);
       const native = new Map<string, number>(entries);
       expect(map.size).toBe(2);
@@ -514,13 +571,19 @@ describe('HashMap Map conformance', () => {
     });
 
     test('structurally-equal object keys in initial entries collapse (last wins)', () => {
-      const map = new HashMap<object, number>([[{ id: 1 }, 1], [{ id: 1 }, 2]]);
+      const map = new HashMap<object, number>([
+        [{ id: 1 }, 1],
+        [{ id: 1 }, 2],
+      ]);
       expect(map.size).toBe(1);
       expect(map.get({ id: 1 })).toBe(2);
     });
 
     test('constructor does not mutate the input array', () => {
-      const entries: Array<[string, number]> = [['a', 1], ['a', 2]];
+      const entries: Array<[string, number]> = [
+        ['a', 1],
+        ['a', 2],
+      ];
       const copy = JSON.parse(JSON.stringify(entries));
       void new HashMap(entries);
       expect(entries).toEqual(copy);
@@ -624,7 +687,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('throws after the key is deleted and after clear', () => {
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]]);
+      const map = new HashMap<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
       map.delete('a');
       expect(() => map.getOrThrow('a')).toThrow('Element not found');
       expect(map.getOrThrow('b')).toBe(2);
@@ -633,7 +699,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('works for null and undefined keys', () => {
-      const map = new HashMap<unknown, string>([[null, 'n'], [undefined, 'u']]);
+      const map = new HashMap<unknown, string>([
+        [null, 'n'],
+        [undefined, 'u'],
+      ]);
       expect(map.getOrThrow(null)).toBe('n');
       expect(map.getOrThrow(undefined)).toBe('u');
     });
@@ -653,7 +722,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('map can be reused after clear', () => {
-      const map = new HashMap<string, number>([['a', 1], ['b', 2]]);
+      const map = new HashMap<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
       map.clear();
       expect(map.set('a', 10)).toBe(map);
       expect(map.size).toBe(1);
@@ -675,7 +747,10 @@ describe('HashMap Map conformance', () => {
     });
 
     test('a live iterator observes clear()', () => {
-      const map = new HashMap<number, number>([[1, 1], [2, 2]]);
+      const map = new HashMap<number, number>([
+        [1, 1],
+        [2, 2],
+      ]);
       const it = map.entries();
       map.clear();
       expect(it.next().done).toBe(true);
@@ -723,10 +798,15 @@ describe('HashMap Map conformance', () => {
       const keys = Array.from({ length: 64 }, (_, i) => i * 1024); // all map to bucket 0 at small capacities
       const hm = new HashMap<number, number>({ capacity: 4 });
       const native = new Map<number, number>();
-      keys.forEach(k => { hm.set(k, k); native.set(k, k); });
-      keys.filter((_, i) => i % 3 === 0).forEach(k => {
-        expect(hm.delete(k)).toBe(native.delete(k));
+      keys.forEach((k) => {
+        hm.set(k, k);
+        native.set(k, k);
       });
+      keys
+        .filter((_, i) => i % 3 === 0)
+        .forEach((k) => {
+          expect(hm.delete(k)).toBe(native.delete(k));
+        });
       expectSameContents(hm, native);
     });
   });

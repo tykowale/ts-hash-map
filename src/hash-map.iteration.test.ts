@@ -45,11 +45,16 @@ const iterKinds: IterKind[] = ['keys', 'values', 'entries', 'iterator'];
 
 function getIter<K, V>(m: HashMap<K, V>, kind: IterKind): IterableIterator<unknown> {
   switch (kind) {
-    case 'keys': return m.keys();
-    case 'values': return m.values();
-    case 'entries': return m.entries();
-    case 'iterator': return m[Symbol.iterator]();
-    default: throw new Error('unknown iterator kind');
+    case 'keys':
+      return m.keys();
+    case 'values':
+      return m.values();
+    case 'entries':
+      return m.entries();
+    case 'iterator':
+      return m[Symbol.iterator]();
+    default:
+      throw new Error('unknown iterator kind');
   }
 }
 
@@ -82,7 +87,11 @@ describe('HashMap iteration', () => {
       expect(keys).toHaveLength(n);
       expect(new Set(keys).size).toBe(n);
       expect(sortedNums(keys)).toEqual(range(n));
-      expect([...m.values()].sort()).toEqual(range(n).map((k) => `v${k}`).sort());
+      expect([...m.values()].sort()).toEqual(
+        range(n)
+          .map((k) => `v${k}`)
+          .sort(),
+      );
       expect([...m.entries()]).toHaveLength(n);
     });
 
@@ -126,7 +135,10 @@ describe('HashMap iteration', () => {
       const m = build(range(50));
       m.clear();
       m.set(1000, 'x').set(2000, 'y');
-      expect([...m.entries()].sort(byKey)).toEqual([[1000, 'x'], [2000, 'y']]);
+      expect([...m.entries()].sort(byKey)).toEqual([
+        [1000, 'x'],
+        [2000, 'y'],
+      ]);
     });
 
     it('reflects overwritten values without duplicating keys', () => {
@@ -255,7 +267,11 @@ describe('HashMap iteration', () => {
   });
 
   describe('consumers', () => {
-    const m = new HashMap<string, number>([['a', 1], ['b', 2], ['c', 3]]);
+    const m = new HashMap<string, number>([
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+    ]);
 
     it('works with for-of destructuring', () => {
       const seen: Record<string, number> = {};
@@ -279,7 +295,11 @@ describe('HashMap iteration', () => {
     it('new Map(hashMap) copies all entries', () => {
       const native = new Map(m);
       expect(native.size).toBe(3);
-      expect([...native.entries()].sort(byKey)).toEqual([['a', 1], ['b', 2], ['c', 3]]);
+      expect([...native.entries()].sort(byKey)).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+      ]);
     });
 
     it('new Set(hashMap.keys()) and new HashMap([...hashMap]) round-trip', () => {
@@ -305,7 +325,10 @@ describe('HashMap iteration', () => {
       const k2 = { id: 2 };
       const v1 = { payload: 'a' };
       const v2 = { payload: 'b' };
-      const m = new HashMap<object, object>([[k1, v1], [k2, v2]]);
+      const m = new HashMap<object, object>([
+        [k1, v1],
+        [k2, v2],
+      ]);
       const keys = [...m.keys()];
       const values = [...m.values()];
       expect(keys).toHaveLength(2);
@@ -328,14 +351,29 @@ describe('HashMap iteration', () => {
 
   describe('null / undefined / falsy keys and values', () => {
     it('yields undefined and null values', () => {
-      const m = new HashMap<string, unknown>([['u', undefined], ['n', null], ['z', 0], ['e', '']]);
+      const m = new HashMap<string, unknown>([
+        ['u', undefined],
+        ['n', null],
+        ['z', 0],
+        ['e', ''],
+      ]);
       const entries = [...m.entries()].sort(byKey);
-      expect(entries).toEqual([['e', ''], ['n', null], ['u', undefined], ['z', 0]]);
+      expect(entries).toEqual([
+        ['e', ''],
+        ['n', null],
+        ['u', undefined],
+        ['z', 0],
+      ]);
       expect([...m.values()]).toHaveLength(4);
     });
 
     it('yields undefined and null keys (both hash to 0, same bucket)', () => {
-      const m = new HashMap<unknown, string>([[undefined, 'u'], [null, 'n'], [0, 'zero'], [false, 'f']]);
+      const m = new HashMap<unknown, string>([
+        [undefined, 'u'],
+        [null, 'n'],
+        [0, 'zero'],
+        [false, 'f'],
+      ]);
       const keys = [...m.keys()];
       expect(keys).toHaveLength(4);
       expect(keys).toContain(undefined);
@@ -345,7 +383,9 @@ describe('HashMap iteration', () => {
     });
 
     it('iteration does not stop early at an undefined value', () => {
-      const m = new HashMap<number, unknown>(range(10).map((k) => [k, undefined] as [number, unknown]));
+      const m = new HashMap<number, unknown>(
+        range(10).map((k) => [k, undefined] as [number, unknown]),
+      );
       expect([...m.values()]).toEqual(new Array(10).fill(undefined));
       expect(sortedNums(m.keys())).toEqual(range(10));
     });
@@ -415,10 +455,12 @@ describe('HashMap iteration', () => {
     it('propagates exceptions thrown by the callback and stops', () => {
       const m = build(range(5));
       let count = 0;
-      expect(() => m.forEach(() => {
-        count++;
-        if (count === 2) throw new Error('boom');
-      })).toThrow('boom');
+      expect(() =>
+        m.forEach(() => {
+          count++;
+          if (count === 2) throw new Error('boom');
+        }),
+      ).toThrow('boom');
       expect(count).toBe(2);
     });
 

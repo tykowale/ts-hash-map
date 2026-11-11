@@ -37,7 +37,10 @@ export class HashMapIterable<K, V, T> implements IterableIterator<T> {
   private current: Node<K, V> | undefined = undefined;
   private source: OrderedNodeSource<K, V> | undefined;
 
-  constructor(source: OrderedNodeSource<K, V>, private readonly kind: IterationKind) {
+  constructor(
+    source: OrderedNodeSource<K, V>,
+    private readonly kind: IterationKind,
+  ) {
     this.source = source;
   }
 

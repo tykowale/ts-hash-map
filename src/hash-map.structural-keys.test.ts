@@ -120,22 +120,46 @@ describe('HashMap structural (value-equality) keys', () => {
 
   describe('arrays', () => {
     it.each([
-      [[1, 2, 3], [1, 2, 3]],
+      [
+        [1, 2, 3],
+        [1, 2, 3],
+      ],
       [[], []],
-      [[[1, 2], [3]], [[1, 2], [3]]],
-      [[{ a: 1, b: 2 }, 'x'], [{ b: 2, a: 1 }, 'x']],
-      [[null, undefined, 0, ''], [null, undefined, 0, '']],
+      [
+        [[1, 2], [3]],
+        [[1, 2], [3]],
+      ],
+      [
+        [{ a: 1, b: 2 }, 'x'],
+        [{ b: 2, a: 1 }, 'x'],
+      ],
+      [
+        [null, undefined, 0, ''],
+        [null, undefined, 0, ''],
+      ],
     ])('same key for equal arrays %j', (a, b) => {
       expectSameKey(a, b);
       expectContract(a, b);
     });
 
     it.each([
-      [[1, 2], [2, 1]],
-      [[1, 2], [1, 2, 3]],
+      [
+        [1, 2],
+        [2, 1],
+      ],
+      [
+        [1, 2],
+        [1, 2, 3],
+      ],
       [[1], [[1]]],
-      [[1, 2, 3], [3, 2, 1]],
-      [[[1, 2], [3]], [[1], [2, 3]]],
+      [
+        [1, 2, 3],
+        [3, 2, 1],
+      ],
+      [
+        [[1, 2], [3]],
+        [[1], [2, 3]],
+      ],
       [[null], [undefined]],
       [[0], [false]],
       [[], [undefined]],
@@ -262,7 +286,16 @@ describe('HashMap structural (value-equality) keys', () => {
 
   describe('Map keys', () => {
     it('Maps with the same entries in the same order are one key', () => {
-      expectSameKey(new Map([['a', 1], ['b', 2]]), new Map([['a', 1], ['b', 2]]));
+      expectSameKey(
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      );
     });
 
     it('Maps with different values are distinct', () => {
@@ -270,8 +303,14 @@ describe('HashMap structural (value-equality) keys', () => {
     });
 
     test('Maps with the same entries in different insertion order are one key', () => {
-      const a = new Map([['a', 1], ['b', 2]]);
-      const b = new Map([['b', 2], ['a', 1]]);
+      const a = new Map([
+        ['a', 1],
+        ['b', 2],
+      ]);
+      const b = new Map([
+        ['b', 2],
+        ['a', 1],
+      ]);
       expect(isEqual(a, b)).toBe(true);
       expect(getHashCode(a)).toBe(getHashCode(b));
       expectSameKey(a, b);
@@ -284,8 +323,13 @@ describe('HashMap structural (value-equality) keys', () => {
 
   describe('class instances and prototypes', () => {
     class Point {
-      constructor(public x: number, public y: number) {}
-      norm() { return Math.hypot(this.x, this.y); }
+      constructor(
+        public x: number,
+        public y: number,
+      ) {}
+      norm() {
+        return Math.hypot(this.x, this.y);
+      }
     }
 
     it('two instances of the same class with equal fields are one key', () => {
@@ -571,8 +615,10 @@ describe('HashMap structural (value-equality) keys', () => {
       for (const i of ids) map.set({ id: i, meta: { even: i % 2 === 0 } }, i);
       const order = shuffle(ids, rand);
       const removed = new Set(order.slice(0, N / 2));
-      for (const i of removed) expect(map.delete({ meta: { even: i % 2 === 0 }, id: i })).toBe(true);
-      for (const i of removed) expect(map.delete({ id: i, meta: { even: i % 2 === 0 } })).toBe(false);
+      for (const i of removed)
+        expect(map.delete({ meta: { even: i % 2 === 0 }, id: i })).toBe(true);
+      for (const i of removed)
+        expect(map.delete({ id: i, meta: { even: i % 2 === 0 } })).toBe(false);
       expect(map.size).toBe(N / 2);
       for (const i of ids) {
         expect(map.has({ id: i, meta: { even: i % 2 === 0 } })).toBe(!removed.has(i));
@@ -584,7 +630,8 @@ describe('HashMap structural (value-equality) keys', () => {
       const map = new HashMap<[number, number], string>();
       for (let x = 0; x < 50; x++) for (let y = 0; y < 50; y++) map.set([x, y], `${x},${y}`);
       expect(map.size).toBe(2500);
-      for (let x = 0; x < 50; x++) for (let y = 0; y < 50; y++) expect(map.get([x, y])).toBe(`${x},${y}`);
+      for (let x = 0; x < 50; x++)
+        for (let y = 0; y < 50; y++) expect(map.get([x, y])).toBe(`${x},${y}`);
     });
   });
 
@@ -596,7 +643,10 @@ describe('HashMap structural (value-equality) keys', () => {
       ['RegExp', /x/g, /x/g],
       ['Set', new Set([1, 2]), new Set([2, 1])],
     ])('%s', (_, stored, probe) => {
-      const map = new HashMap<unknown, number>([[stored, 1], ['other', 2]]);
+      const map = new HashMap<unknown, number>([
+        [stored, 1],
+        ['other', 2],
+      ]);
       expect(map.delete(probe)).toBe(true);
       expect(map.size).toBe(1);
       expect(map.has(stored)).toBe(false);
@@ -628,7 +678,8 @@ describe('HashMap structural (value-equality) keys', () => {
         if (p < 0.7) return Math.floor(rand() * 1000) - 500;
         return Math.floor(rand() * 1e6).toString(36);
       }
-      if (r < 0.6) return Array.from({ length: Math.floor(rand() * 4) }, () => gen(rand, depth - 1));
+      if (r < 0.6)
+        return Array.from({ length: Math.floor(rand() * 4) }, () => gen(rand, depth - 1));
       const obj: { [k: string]: Json } = {};
       const n = 1 + Math.floor(rand() * 4);
       for (let i = 0; i < n; i++) obj[`k${Math.floor(rand() * 10)}`] = gen(rand, depth - 1);

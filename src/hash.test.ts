@@ -23,16 +23,16 @@ describe('getHashCode tests', () => {
   // Instead assert the properties HashMap relies on: a deterministic 32-bit integer that is the
   // same for a structurally equal copy.
   it.each`
-    name               | make
-    ${'3.14'}          | ${() => 3.14}
-    ${'Date'}          | ${() => new Date('2022-01-01')}
-    ${'RegExp'}        | ${() => /^hello$/i}
-    ${'function'}      | ${() => () => {}}
-    ${'array'}         | ${() => [1, 2, 3]}
-    ${'Map'}           | ${() => new Map([[1, 'one'], [2, 'two']])}
-    ${'Set'}           | ${() => new Set([1, 2, 3])}
-    ${'empty object'}  | ${() => ({})}
-    ${'object'}        | ${() => ({ a: 1, b: 2 })}
+    name              | make
+    ${'3.14'}         | ${() => 3.14}
+    ${'Date'}         | ${() => new Date('2022-01-01')}
+    ${'RegExp'}       | ${() => /^hello$/i}
+    ${'function'}     | ${() => () => {}}
+    ${'array'}        | ${() => [1, 2, 3]}
+    ${'Map'}          | ${() => new Map([[1, 'one'], [2, 'two']])}
+    ${'Set'}          | ${() => new Set([1, 2, 3])}
+    ${'empty object'} | ${() => ({})}
+    ${'object'}       | ${() => ({ a: 1, b: 2 })}
   `('hashes $name to a stable int32 shared by equal copies', ({ make }) => {
     const h = getHashCode(make());
     expect(isInt32(h)).toBe(true);

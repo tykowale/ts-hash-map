@@ -279,14 +279,21 @@ function hashLeafObject(value: object, proto: unknown): number | undefined {
       return fmix(combine(TAG_DATE, getNumberHashCode((value as Date).getTime())));
     case '[object RegExp]': {
       const re = value as RegExp;
-      return fmix(combine(combine(TAG_REGEXP, getStringHashCode(re.source)), getStringHashCode(re.flags)));
+      return fmix(
+        combine(combine(TAG_REGEXP, getStringHashCode(re.source)), getStringHashCode(re.flags)),
+      );
     }
     case '[object Number]':
     case '[object String]':
     case '[object Boolean]':
     case '[object BigInt]':
     case '[object Symbol]':
-      return fmix(combine(combine(TAG_BOXED, getStringHashCode(tag)), getPrimitiveHashCode((value as any).valueOf())));
+      return fmix(
+        combine(
+          combine(TAG_BOXED, getStringHashCode(tag)),
+          getPrimitiveHashCode((value as any).valueOf()),
+        ),
+      );
     case '[object ArrayBuffer]':
     case '[object SharedArrayBuffer]':
       return hashBytes(new Uint8Array(value as ArrayBuffer));
@@ -308,7 +315,13 @@ function hashLeafObject(value: object, proto: unknown): number | undefined {
 }
 
 // dispatches the two common kinds directly (one stack frame less per nesting level)
-function hashKnownContainer(value: object, proto: unknown, plain: boolean, ctx: Ctx, depth: number): number {
+function hashKnownContainer(
+  value: object,
+  proto: unknown,
+  plain: boolean,
+  ctx: Ctx,
+  depth: number,
+): number {
   if (plain) {
     return hashObjectProps(value, TAG_OBJECT, ctx, depth);
   }
@@ -378,7 +391,14 @@ export function getHashCode(value: unknown): number {
     return getPrimitiveHashCode(value);
   }
 
-  const ctx: Ctx = { stack: [], cyclic: false, maxDepth: -1, count: 0, budget: Infinity, memo: undefined };
+  const ctx: Ctx = {
+    stack: [],
+    cyclic: false,
+    maxDepth: -1,
+    count: 0,
+    budget: Infinity,
+    memo: undefined,
+  };
   const result = hash(value, ctx, -1);
   if (!ctx.cyclic) {
     return result;

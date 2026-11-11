@@ -20,7 +20,7 @@ export type HashMapOptions = {
    * Rounded up to the nearest power of 2. Values below 1 (or non-finite values) fall back to 1.
    * If not provided, the default initial capacity (16) is used.
    */
-  capacity?: number,
+  capacity?: number;
 
   /**
    * The load factor of the hashmap.
@@ -119,10 +119,7 @@ export class HashMap<K, V> implements Map<K, V> {
    * Constructs a hashmap with provided elements and the provided options
    */
   constructor(initialValues: Array<[K, V]>, options: HashMapOptions);
-  constructor(
-    initialValuesOrOptions?: Array<[K, V]> | HashMapOptions,
-    options?: HashMapOptions,
-  ) {
+  constructor(initialValuesOrOptions?: Array<[K, V]> | HashMapOptions, options?: HashMapOptions) {
     let initVals: Array<[K, V]> | undefined;
     let opts: HashMapOptions | undefined;
 
@@ -230,7 +227,7 @@ export class HashMap<K, V> implements Map<K, V> {
 
     this.count++;
 
-    if (this.count > (this.capacity * this.loadFactor)) {
+    if (this.count > this.capacity * this.loadFactor) {
       this.resize();
     }
 

@@ -3,9 +3,9 @@
   "version": "1.2.0",
   "description": "TS Hash Map",
   "keywords": [
+    "hash",
     "hashmap",
     "map",
-    "hash",
     "structural-equality",
     "typescript"
   ],
@@ -13,12 +13,15 @@
   "bugs": {
     "url": "https://github.com/tykowale/ts-hash-map/issues"
   },
+  "license": "MIT",
+  "author": "Ty Kowalewski<tykowale@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tykowale/ts-hash-map.git"
   },
-  "license": "MIT",
-  "author": "Ty Kowalewski<tykowale@gmail.com>",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -37,9 +40,9 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist"
-  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
@@ -72,8 +75,5 @@
   },
   "engines": {
     "node": ">=22"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

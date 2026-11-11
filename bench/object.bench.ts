@@ -8,14 +8,14 @@ const keys = generateFakeUserObject(maxSize);
 const results: any[] = [];
 
 type User = {
-  id: string,
+  id: string;
   name: string;
   username: string;
   email: string;
   someOtherField: string;
   permissions: string[];
   active: boolean;
-}
+};
 
 function generateFakeUserObject(size: number): User[] {
   const res = [];
@@ -28,10 +28,7 @@ function generateFakeUserObject(size: number): User[] {
       username: 'tykowale',
       email: 'ty@foobar.com',
       someOtherField: `${id} plus some stuff`,
-      permissions: [
-        'admin',
-        'moderator',
-      ],
+      permissions: ['admin', 'moderator'],
       active: true,
     });
   }
@@ -74,32 +71,32 @@ function testHashMap(): void {
   }
 
   benchmarkOperation('hash map set', () => {
-    hashMapSet.forEach(map => {
-      keys.forEach(key => {
+    hashMapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.set(key, `value_${key}`);
       });
     });
   });
 
   benchmarkOperation('hash map get', () => {
-    hashMapSet.forEach(map => {
-      keys.forEach(key => {
+    hashMapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.get(key);
       });
     });
   });
 
   benchmarkOperation('hash map update', () => {
-    hashMapUpdate.forEach(map => {
-      keys.forEach(key => {
+    hashMapUpdate.forEach((map) => {
+      keys.forEach((key) => {
         map.set(key, `new_value_${key}`);
       });
     });
   });
 
   benchmarkOperation('hash map delete', () => {
-    hashMapDelete.forEach(map => {
-      keys.forEach(key => {
+    hashMapDelete.forEach((map) => {
+      keys.forEach((key) => {
         map.delete(key);
       });
     });
@@ -125,38 +122,37 @@ function testMap(): void {
   }
 
   benchmarkOperation('native map set', () => {
-    mapSet.forEach(map => {
-      keys.forEach(key => {
+    mapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.set(stringify(key), `value_${key}`);
       });
     });
   });
 
   benchmarkOperation('native map get', () => {
-    mapSet.forEach(map => {
-      keys.forEach(key => {
+    mapSet.forEach((map) => {
+      keys.forEach((key) => {
         map.get(stringify(key));
       });
     });
   });
 
   benchmarkOperation('native map update', () => {
-    mapUpdate.forEach(map => {
-      keys.forEach(key => {
+    mapUpdate.forEach((map) => {
+      keys.forEach((key) => {
         map.set(stringify(key), `new_value_${key}`);
       });
     });
   });
 
   benchmarkOperation('native map delete', () => {
-    mapDelete.forEach(map => {
-      keys.forEach(key => {
+    mapDelete.forEach((map) => {
+      keys.forEach((key) => {
         map.delete(stringify(key));
       });
     });
   });
 }
-
 
 function runTests(): void {
   console.log('Running Tests....');
