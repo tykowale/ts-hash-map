@@ -336,7 +336,10 @@ renamed group would otherwise drop out silently); with `--smoke` or `--sizes` it
 over the 6 runs) for 22 of 50 rows, mostly the user-record, tuple and int get/set rows; 2-3.5% for
 most others; and 4-8% for `string-8`/`string-100` same-instance gets, `read-write/int upsert zipf`,
 `uuid-fresh n=10` and `from entries n=10` (bimodal, 18%). The last two were dropped from the
-preset. Hence `--threshold 3` (about twice the typical per-row A/A change), and `--runs 5` before
+preset. A second A/A on the trimmed preset gave -0.7% [-1.2%, -0.2%], no row `SLOWER` or
+`faster` at ±3%, and single rows up to ±8-11% (`small-maps/int n=16`, `string-8` same instance):
+the geomean CI can exclude 0 by under 1% in an A/A, which the 2% `--accept` margin absorbs, and
+which rows are noisiest changes from run to run. Hence `--threshold 3` (about twice the typical per-row A/A change), and `--runs 5` before
 taking a verdict on one of the remaining 4-8% rows. Re-calibrate on your own machine.
 
 To do it by hand, run `npm run bench -- --root ../other-checkout --out base.json` and
