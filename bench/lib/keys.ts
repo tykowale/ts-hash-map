@@ -82,6 +82,40 @@ export function sparseInts(n: number, rng: Rng): KeySet<number> {
   return distinct(n, () => (randomInt(rng, 2 ** 32) - 2 ** 31) | 0);
 }
 
+/**
+ * Multiples of 1024 (`id * 1024`, ids 0..2n-1 shuffled): ints whose low ten bits are all zero, like
+ * ids from a strided allocator. Ints hash to themselves and the bucket is `hash & (capacity - 1)`,
+ * so without a spread step these share a few buckets until capacity passes 2^10 * n.
+ */
+export function stridedInts(n: number, rng: Rng): KeySet<number> {
+  const { keys, misses } = smallInts(n, rng);
+  return { keys: keys.map((id) => id * 1024), misses: misses.map((id) => id * 1024) };
+}
+
+/**
+ * Millisecond timestamps of events about 1 s apart from 2020-01-01 (random 1..2000 ms gaps), in
+ * random order. They are integers above 2^31, so they take the float hash path, not the int32 one.
+ */
+export function timestampsMs(n: number, rng: Rng): KeySet<number> {
+  const all: number[] = [];
+  let t = Date.UTC(2020, 0, 1);
+  for (let i = 0; i < 2 * n; i++) {
+    t += 1 + randomInt(rng, 2000);
+    all.push(t);
+  }
+  shuffle(rng, all);
+  return { keys: all.slice(0, n), misses: all.slice(n) };
+}
+
+/**
+ * Tagged ids `id * 4 + tag` with the tag fixed at 1 (one kind of entity per map), so the low two
+ * bits never vary and three quarters of the buckets stay empty without a spread step.
+ */
+export function taggedInts(n: number, rng: Rng): KeySet<number> {
+  const { keys, misses } = smallInts(n, rng);
+  return { keys: keys.map((id) => id * 4 + 1), misses: misses.map((id) => id * 4 + 1) };
+}
+
 /** Non-integer doubles: these take the Float64Array bit-mixing hash path. */
 export function floats(n: number, rng: Rng): KeySet<number> {
   return distinct(n, () => rng() * 1e6 + 0.5);
@@ -169,6 +203,79 @@ export function users(n: number, rng: Rng): KeySet<UserKey> {
   );
 }
 
+/**
+ * Records of four shapes in one map, picked at random per key: the same leading fields, then
+ * optional ones present or not, so a map sees several hidden classes instead of one.
+ *   { id, name, role }
+ *   { id, name, role, email }
+ *   { id, name, role, email, active }
+ *   { id, name, role, nickname?, active } (nickname on about half)
+ */
+export type ShapedRecord = {
+  id: number;
+  name: string;
+  role: string;
+  email?: string;
+  nickname?: string;
+  active?: boolean;
+};
+
+export function shapedRecords(n: number, rng: Rng): KeySet<ShapedRecord> {
+  return distinct(
+    n,
+    (): ShapedRecord => {
+      const id = randomInt(rng, 2 ** 31);
+      const name = randomString(rng, 6 + randomInt(rng, 6));
+      const role = ROLES[randomInt(rng, ROLES.length)]!;
+      switch (randomInt(rng, 4)) {
+        case 0:
+          return { id, name, role };
+        case 1:
+          return { id, name, role, email: flat(`${name}@${randomString(rng, 5)}.com`) };
+        case 2:
+          return {
+            id,
+            name,
+            role,
+            email: flat(`${name}@${randomString(rng, 5)}.com`),
+            active: rng() < 0.5,
+          };
+        default: {
+          const r: ShapedRecord = { id, name, role };
+          if (rng() < 0.5) {
+            r.nickname = randomString(rng, 5);
+          }
+          r.active = rng() < 0.5;
+          return r;
+        }
+      }
+    },
+    (r) => r.id,
+  );
+}
+
+/** A 16-field flat record: 8 numbers (one a distinct id), 6 strings, 2 booleans. */
+export type WideRecord = Record<string, number | string | boolean>;
+
+export function wideRecords(n: number, rng: Rng): KeySet<WideRecord> {
+  return distinct(
+    n,
+    (): WideRecord => {
+      const r: WideRecord = { id: randomInt(rng, 2 ** 31) };
+      for (let i = 1; i < 8; i++) {
+        r[`n${i}`] = randomInt(rng, 1e6);
+      }
+      for (let i = 0; i < 6; i++) {
+        r[`s${i}`] = randomString(rng, 4 + randomInt(rng, 8));
+      }
+      r.b0 = rng() < 0.5;
+      r.b1 = rng() < 0.5;
+      return r;
+    },
+    (r) => r.id,
+  );
+}
+
 /** `[x, y]` coordinate tuples: the most common structural key. */
 export function tuples(n: number, rng: Rng): KeySet<[number, number]> {
   const side = Math.ceil(Math.sqrt(4 * n)) + 1;
@@ -233,6 +340,33 @@ export function mixed(n: number, rng: Rng): KeySet<unknown> {
     parts.flatMap((p) => p.misses),
   ).slice(0, n);
   return { keys, misses };
+}
+
+/**
+ * A seeded Zipf(s) sampler over ranks 0..n-1 (rank 0 most frequent): P(rank k) is proportional to
+ * 1 / (k + 1)^s. Uses an inverted CDF with binary search, so draws are exact and reproducible.
+ */
+export function zipf(n: number, s: number, rng: Rng): () => number {
+  const cdf = new Float64Array(n);
+  let total = 0;
+  for (let k = 0; k < n; k++) {
+    total += 1 / (k + 1) ** s;
+    cdf[k] = total;
+  }
+  return () => {
+    const u = rng() * total;
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (cdf[mid]! < u) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  };
 }
 
 /** A deep copy that is structurally equal but shares no references with the original. */
