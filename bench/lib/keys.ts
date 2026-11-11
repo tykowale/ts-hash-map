@@ -214,6 +214,27 @@ export function dates(n: number, rng: Rng): KeySet<Date> {
   );
 }
 
+/** One key set holding ints, 12-char strings, records, tuples and Dates in equal parts, shuffled. */
+export function mixed(n: number, rng: Rng): KeySet<unknown> {
+  const per = Math.ceil(n / 5);
+  const parts: KeySet<unknown>[] = [
+    smallInts(per, rng),
+    strings(per, rng, 12),
+    users(per, rng),
+    tuples(per, rng),
+    dates(per, rng),
+  ];
+  const keys = shuffle(
+    rng,
+    parts.flatMap((p) => p.keys),
+  ).slice(0, n);
+  const misses = shuffle(
+    rng,
+    parts.flatMap((p) => p.misses),
+  ).slice(0, n);
+  return { keys, misses };
+}
+
 /** A deep copy that is structurally equal but shares no references with the original. */
 export function clone<K>(key: K): K {
   return typeof key === 'object' && key !== null ? structuredClone(key) : key;

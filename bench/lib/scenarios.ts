@@ -109,7 +109,7 @@ export interface KeySuite<K> {
  * whole number of LOOKUPS-sized windows and each window holds exactly round(LOOKUPS * hitRate)
  * hits, so every timed call returns the same hit count whatever the cursor position.
  */
-function probeIndices(
+export function probeIndices(
   n: number,
   hitRate: number,
   order: 'random' | 'insertion',
@@ -671,7 +671,7 @@ const LOOKUP_OPS: Partial<
   'has-50': { rate: 0.5, order: 'random', has: true },
 };
 
-function repsFor(n: number): number {
+export function repsFor(n: number): number {
   return Math.max(1, Math.ceil(MIN_OPS_PER_CALL / n));
 }
 
