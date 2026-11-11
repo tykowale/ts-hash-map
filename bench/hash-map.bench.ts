@@ -7,11 +7,11 @@ const keys = generateRandomKeys(maxSize);
 const results: any[] = [];
 
 function generateRandomKeys(size: number): string[] {
-  const keys: string[] = [];
+  const result: string[] = [];
   for (let i = 0; i < size; i++) {
-    keys.push(uuidv4());
+    result.push(uuidv4());
   }
-  return keys;
+  return result;
 }
 
 function benchmarkOperation(title: string, operation: () => void) {

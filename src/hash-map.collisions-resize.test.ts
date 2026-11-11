@@ -161,11 +161,11 @@ describe('HashMap collisions and resizing', () => {
       expect(map.get('x')).toBe(1);
       expect(map.get('y')).toBe(2);
       expect(map.has('missing')).toBe(false);
-      const table = tableOf(map as any);
+      const table = tableOf(map);
       const used = table.map((n, i) => (n ? i : -1)).filter((i) => i >= 0);
       expect(used.length).toBe(1);
       expect(used[0]).toBeGreaterThanOrEqual(0);
-      expect(used[0]).toBeLessThan(capacityOf(map as any));
+      expect(used[0]).toBeLessThan(capacityOf(map));
       expect(indicesInRange(map as any)).toBe(true);
       expect(map.delete('x')).toBe(true);
       expect(map.get('x')).toBeUndefined();
@@ -230,7 +230,7 @@ describe('HashMap collisions and resizing', () => {
       words.forEach((w, i) => map.set(w, i));
       expect(map.size).toBe(256);
       words.forEach((w, i) => expect(map.get(w)).toBe(i));
-      expect(map.has('AaAaAaAaAaAaAaAa' + 'x')).toBe(false);
+      expect(map.has('AaAaAaAaAaAaAaAax')).toBe(false);
       words.filter((_, i) => i % 2 === 0).forEach((w) => expect(map.delete(w)).toBe(true));
       expect(map.size).toBe(128);
       words.forEach((w, i) => expect(map.has(w)).toBe(i % 2 === 1));
@@ -358,9 +358,9 @@ describe('HashMap collisions and resizing', () => {
       const map = new HashMap<number, number>();
       const seen: Array<[number, number]> = [];
       for (let i = 1; i <= 200; i++) {
-        const before = capacityOf(map as any);
+        const before = capacityOf(map);
         map.set(i, i);
-        const after = capacityOf(map as any);
+        const after = capacityOf(map);
         if (after !== before) seen.push([map.size, after]);
         expect(map.size).toBeLessThanOrEqual(after * 0.75);
       }
@@ -404,11 +404,11 @@ describe('HashMap collisions and resizing', () => {
 
     test('size and all entries are preserved after each successive resize', () => {
       const map = new HashMap<string, number>({ capacity: 2 });
-      let lastCap = capacityOf(map as any);
+      let lastCap = capacityOf(map);
       let resizes = 0;
       for (let i = 0; i < 3000; i++) {
         map.set(`k${i}`, i);
-        const cap = capacityOf(map as any);
+        const cap = capacityOf(map);
         if (cap !== lastCap) {
           expect(cap).toBe(lastCap * 2);
           resizes++;
@@ -424,8 +424,8 @@ describe('HashMap collisions and resizing', () => {
     test('every node sits in the bucket its hash maps to after resizing', () => {
       const map = new HashMap<number, number>({ capacity: 2 });
       for (let i = -500; i < 500; i++) map.set(i * 7, i);
-      const cap = capacityOf(map as any);
-      tableOf(map as any).forEach((head, idx) => {
+      const cap = capacityOf(map);
+      tableOf(map).forEach((head, idx) => {
         let node: any = head;
         while (node) {
           expect(node.hash & (cap - 1)).toBe(idx);
@@ -438,7 +438,7 @@ describe('HashMap collisions and resizing', () => {
       const map = new HashMap<number, number>({ capacity: 3, loadFactor: 0.6 });
       for (let i = 0; i < 1000; i++) {
         map.set(i, i);
-        const cap = capacityOf(map as any);
+        const cap = capacityOf(map);
         expect(cap & (cap - 1)).toBe(0);
       }
     });
@@ -446,7 +446,7 @@ describe('HashMap collisions and resizing', () => {
     test('deleting never shrinks capacity', () => {
       const map = new HashMap<number, number>();
       for (let i = 0; i < 100; i++) map.set(i, i);
-      const cap = capacityOf(map as any);
+      const cap = capacityOf(map);
       for (let i = 0; i < 100; i++) map.delete(i);
       expect(map.size).toBe(0);
       expect(capacityOf(map as any)).toBe(cap);
@@ -477,7 +477,7 @@ describe('HashMap collisions and resizing', () => {
     test('clear() keeps the current (grown) capacity and the map is reusable', () => {
       const map = new HashMap<number, number>();
       for (let i = 0; i < 100; i++) map.set(i, i);
-      const cap = capacityOf(map as any);
+      const cap = capacityOf(map);
       expect(cap).toBe(256);
       map.clear();
       expect(map.size).toBe(0);

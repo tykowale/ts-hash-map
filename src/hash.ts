@@ -83,13 +83,13 @@ function getBooleanHashCode(value: boolean): number {
 }
 
 function getStringHashCode(value: string): number {
-  let hash = 0;
+  let h = 0;
 
   for (let i = 0; i < value.length; i++) {
-    hash = (Math.imul(hash, 31) + value.charCodeAt(i)) | 0;
+    h = (Math.imul(h, 31) + value.charCodeAt(i)) | 0;
   }
 
-  return hash;
+  return h;
 }
 
 /** SameValueZero-consistent number hash */

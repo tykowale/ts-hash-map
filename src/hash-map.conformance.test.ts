@@ -318,7 +318,7 @@ describe('HashMap Map conformance', () => {
       map.has('zzz');
       map.getOrDefault('zzz', 0);
       expect(map.size).toBe(2);
-      expect(() => map.getOrThrow('zzz')).toThrow();
+      expect(() => map.getOrThrow('zzz')).toThrow('Element not found');
       expect(map.size).toBe(2);
       map.delete('zzz'); // miss
       expect(map.size).toBe(2);
@@ -420,6 +420,7 @@ describe('HashMap Map conformance', () => {
       const map = new HashMap<string, number>([['a', 1]]);
       let captured: unknown = 'sentinel';
       map.forEach(function (this: unknown) {
+        // oxlint-disable-next-line typescript/no-this-alias -- the test inspects the callback's this binding
         captured = this;
       });
       expect(captured).toBeUndefined();
@@ -509,7 +510,7 @@ describe('HashMap Map conformance', () => {
       expect(map.size).toBe(2);
       expect(map.get('a')).toBe(4);
       expect(map.get('b')).toBe(5);
-      expectSameContents(map as HashMap<unknown, unknown>, native as Map<unknown, unknown>);
+      expectSameContents(map, native);
     });
 
     test('structurally-equal object keys in initial entries collapse (last wins)', () => {
@@ -521,7 +522,7 @@ describe('HashMap Map conformance', () => {
     test('constructor does not mutate the input array', () => {
       const entries: Array<[string, number]> = [['a', 1], ['a', 2]];
       const copy = JSON.parse(JSON.stringify(entries));
-      new HashMap(entries);
+      void new HashMap(entries);
       expect(entries).toEqual(copy);
     });
 
@@ -726,7 +727,7 @@ describe('HashMap Map conformance', () => {
       keys.filter((_, i) => i % 3 === 0).forEach(k => {
         expect(hm.delete(k)).toBe(native.delete(k));
       });
-      expectSameContents(hm as HashMap<unknown, unknown>, native as Map<unknown, unknown>);
+      expectSameContents(hm, native);
     });
   });
 });

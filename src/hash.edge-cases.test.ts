@@ -131,6 +131,7 @@ describe('getHashCode edge cases', () => {
     test('invalid Date hash is comparable to itself with ===', () => {
       const d = new Date('invalid');
       expect(isEqual(d, d)).toBe(true);
+      // oxlint-disable-next-line no-self-compare -- comparing two separate hash calls on purpose
       expect(getHashCode(d) === getHashCode(d)).toBe(true);
     });
   });

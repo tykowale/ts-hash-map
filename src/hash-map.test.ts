@@ -227,14 +227,14 @@ describe('HashMap', () => {
 
     it('works with a large number of entries', () => {
       const size = 1000;
-      const hashMap = new HashMap<number, string>();
+      const map = new HashMap<number, string>();
 
       for (let i = 0; i < size; i++) {
-        hashMap.set(i, `value_${i}`);
+        map.set(i, `value_${i}`);
       }
 
       for (let i = 0; i < size; i++) {
-        expect(hashMap.get(i)).toEqual(`value_${i}`);
+        expect(map.get(i)).toEqual(`value_${i}`);
       }
     });
   });

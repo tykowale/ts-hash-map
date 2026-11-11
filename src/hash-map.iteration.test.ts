@@ -49,6 +49,7 @@ function getIter<K, V>(m: HashMap<K, V>, kind: IterKind): IterableIterator<unkno
     case 'values': return m.values();
     case 'entries': return m.entries();
     case 'iterator': return m[Symbol.iterator]();
+    default: throw new Error('unknown iterator kind');
   }
 }
 
@@ -56,8 +57,8 @@ describe('HashMap iteration', () => {
   describe('empty / single / many', () => {
     it.each(iterKinds)('%s() on an empty map yields nothing and is immediately done', (kind) => {
       const m = new HashMap<number, string>();
-      const it = getIter(m, kind);
-      expect(it.next()).toEqual({ value: undefined, done: true });
+      const iter = getIter(m, kind);
+      expect(iter.next()).toEqual({ value: undefined, done: true });
       expect([...getIter(m, kind)]).toEqual([]);
     });
 
@@ -68,11 +69,11 @@ describe('HashMap iteration', () => {
       ['iterator', [['k', 'v']]],
     ] as Array<[IterKind, unknown[]]>)('%s() on a single-entry map', (kind, expected) => {
       const m = new HashMap<string, string>([['k', 'v']]);
-      const it = getIter(m, kind);
-      const first = it.next();
+      const iter = getIter(m, kind);
+      const first = iter.next();
       expect(first.done).toBe(false);
       expect([first.value]).toEqual(expected);
-      expect(it.next().done).toBe(true);
+      expect(iter.next().done).toBe(true);
     });
 
     it.each([2, 13, 100, 1000, 5000])('iterates all %i entries exactly once', (n) => {
@@ -191,24 +192,24 @@ describe('HashMap iteration', () => {
   describe('iterator protocol', () => {
     it.each(iterKinds)('%s() iterator is itself iterable (returns itself)', (kind) => {
       const m = build(range(3));
-      const it = getIter(m, kind);
-      expect(typeof it.next).toBe('function');
-      expect(it[Symbol.iterator]()).toBe(it);
+      const iter = getIter(m, kind);
+      expect(typeof iter.next).toBe('function');
+      expect(iter[Symbol.iterator]()).toBe(iter);
     });
 
     it.each(iterKinds)('%s() keeps returning done:true after exhaustion', (kind) => {
       const m = build(range(3));
-      const it = getIter(m, kind);
-      for (let i = 0; i < 3; i++) expect(it.next().done).toBe(false);
-      for (let i = 0; i < 5; i++) expect(it.next()).toEqual({ value: undefined, done: true });
+      const iter = getIter(m, kind);
+      for (let i = 0; i < 3; i++) expect(iter.next().done).toBe(false);
+      for (let i = 0; i < 5; i++) expect(iter.next()).toEqual({ value: undefined, done: true });
     });
 
     it.each(iterKinds)('%s() stays done even if entries are added after exhaustion', (kind) => {
       const m = build(range(3));
-      const it = getIter(m, kind);
-      [...it];
+      const iter = getIter(m, kind);
+      Array.from(iter);
       m.set(1, 'x').set(2, 'y').set(15, 'z');
-      expect(it.next().done).toBe(true);
+      expect(iter.next().done).toBe(true);
     });
 
     it.each(iterKinds)('%s() returns a new independent iterator each call', (kind) => {
@@ -239,9 +240,9 @@ describe('HashMap iteration', () => {
 
     it('partially consumed iterator spreads only remaining items', () => {
       const m = build(range(6));
-      const it = m.keys();
-      const first = it.next().value as number;
-      const rest = [...it];
+      const iter = m.keys();
+      const first = iter.next().value as number;
+      const rest = [...iter];
       expect(rest).toHaveLength(5);
       expect(rest).not.toContain(first);
     });
@@ -293,6 +294,7 @@ describe('HashMap iteration', () => {
     });
 
     it('works with Promise.all over values', async () => {
+      // oxlint-disable-next-line typescript/await-thenable -- Promise.all must accept any iterable, not just promises
       await expect(Promise.all(m.values())).resolves.toHaveLength(3);
     });
   });
@@ -594,24 +596,24 @@ describe('HashMap iteration', () => {
 
     test('an iterator created before clear() yields nothing afterwards', () => {
       const m = build(range(5));
-      const it = m.entries();
+      const iter = m.entries();
       m.clear();
-      expect(it.next().done).toBe(true);
+      expect(iter.next().done).toBe(true);
     });
 
     test('an iterator created before a resize yields every entry present when consumed', () => {
       const keys = range(6).flatMap((i) => [i, i + 16]);
       const m = build(keys);
-      const it = m.keys();
+      const iter = m.keys();
       for (let j = 200; j < 220; j++) m.set(j, `v${j}`);
-      expect(sortedNums(it)).toEqual(sortedNums([...keys, ...range(20, 200)]));
+      expect(sortedNums(iter)).toEqual(sortedNums([...keys, ...range(20, 200)]));
     });
 
     it('an iterator created before a non-resizing set() sees the new entry in a later bucket', () => {
       const m = build([0]);
-      const it = m.keys();
+      const iter = m.keys();
       m.set(7, 'v7');
-      expect(sortedNums(it)).toEqual([0, 7]);
+      expect(sortedNums(iter)).toEqual([0, 7]);
     });
   });
 });

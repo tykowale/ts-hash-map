@@ -51,6 +51,7 @@ function normaliseCapacity(capacity: number | undefined): number {
     return DEFAULT_INITIAL_CAPACITY;
   }
 
+  // oxlint-disable-next-line typescript/no-unnecessary-type-conversion -- coerce values from untyped JS callers
   const c = Number(capacity);
 
   if (!(c >= 1)) {
@@ -71,6 +72,7 @@ function normaliseLoadFactor(loadFactor: number | undefined): number {
     return DEFAULT_LOAD_FACTOR;
   }
 
+  // oxlint-disable-next-line typescript/no-unnecessary-type-conversion -- coerce values from untyped JS callers
   const lf = Number(loadFactor);
 
   return lf > 0 && lf !== Infinity ? lf : DEFAULT_LOAD_FACTOR;
