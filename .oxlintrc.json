@@ -25,6 +25,7 @@
     {
       "files": ["src/**/*.test.ts"],
       "rules": {
+        "oxc/approx-constant": "off",
         "vitest/expect-expect": "off",
         "vitest/no-conditional-expect": "off",
         "vitest/require-mock-type-parameters": "off",

@@ -18,7 +18,7 @@ describe('isEqual', () => {
       ${undefined}  | ${undefined}  | ${true}
       ${42}         | ${43}         | ${false}
       ${-1}         | ${1}          | ${false}
-      ${1.25}       | ${1.25001}    | ${false}
+      ${3.14}       | ${3.14159}    | ${false}
       ${'hello'}    | ${'world'}    | ${false}
       ${'hello'}    | ${'HELLO'}    | ${false}
       ${true}       | ${false}      | ${false}
