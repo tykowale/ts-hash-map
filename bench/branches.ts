@@ -13,7 +13,7 @@
  *
  * The library has no runtime dependencies and the scenarios import the target's src/ directly,
  * so the worktree needs no npm install (unless you pass --dist, which builds both sides).
- * Any other flag (--family, --filter, --preset, --time, --sizes, --dist, --smoke) is passed to
+ * Any other flag (--family, --filter, --preset, --large, --time, --sizes, --dist, --smoke) is passed to
  * bench/run.ts; --threshold and --summary are passed to compare.ts. --help lists them, and an
  * unknown flag is an error.
  */
@@ -33,6 +33,7 @@ Branch options:
   --runs <n>          runs per side, alternating base and head (default 3)
   --worktree <dir>    where to check out the base (default ../ts-hash-map-bench-base)
   --family <a,b,...>  only run these families
+  --large             also run the opt-in large tier
 ${PRESET_USAGE}
 
 Compare options (passed to bench:compare):
@@ -94,7 +95,7 @@ for (let i = 0; i < rest.length; i++) {
         exitWithUsage(USAGE, (err as Error).message);
       }
     }
-  } else {
+  } else if (rest[i] !== '--large') {
     leftover.push(rest[i]!);
   }
 }

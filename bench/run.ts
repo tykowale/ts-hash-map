@@ -10,6 +10,7 @@
  *   npm run bench -- --out bench/results/head.json
  *   npm run bench -- --dist                        # benchmark the built dist/index.mjs
  *   npm run bench -- --preset hill                 # a named subset (bench/lib/presets.ts)
+ *   npm run bench -- --large                       # also run the opt-in large tier (1M entries)
  *
  * Every other flag (--time, --sizes, --root) is forwarded to the family processes. --help lists
  * them; an unknown flag is an error.
@@ -23,6 +24,8 @@ import { PRESET_USAGE, presetArgs } from './lib/presets.ts';
 import { environment, gitInfo, SCHEMA, type ResultFile } from './lib/report.ts';
 
 const SCENARIO_DIR = join(import.meta.dirname, 'scenarios');
+/** Families left out of a default run: too slow or memory-hungry for every screen. */
+const OPT_IN = ['large'];
 
 const USAGE = `usage: npm run bench -- [options]
 
@@ -31,6 +34,8 @@ Runs every scenario family (bench/scenarios/*.ts) in its own Node process.
 Runner options:
   --family <a,b,...>  only run these families (see --list)
   --list              print the available families and exit
+  --large             also run the opt-in families (${OPT_IN.join(', ')}); smoke mode always
+                      includes them, and --family can name them directly
 ${PRESET_USAGE}
 
 ${CONFIG_USAGE}`;
@@ -74,6 +79,7 @@ const forward: string[] = [];
 const leftover: string[] = [];
 let wanted: string[] | undefined = presetFamilies;
 let list = false;
+let large = false;
 let parsed: ReturnType<typeof parseConfig>;
 try {
   parsed = parseConfig(argv);
@@ -91,6 +97,8 @@ for (let i = 0; i < rest.length; i++) {
     wanted = value.split(',').filter(Boolean);
   } else if (arg === '--list') {
     list = true;
+  } else if (arg === '--large') {
+    large = true;
   } else {
     leftover.push(arg);
   }
@@ -100,7 +108,7 @@ for (let i = 0; i < argv.length; i++) {
   const arg = argv[i]!;
   if (arg === '--out' || arg === '--family') {
     i++;
-  } else if (arg !== '--list') {
+  } else if (arg !== '--list' && arg !== '--large') {
     forward.push(arg);
   }
 }
@@ -111,7 +119,7 @@ const all = readdirSync(SCENARIO_DIR)
   .sort();
 
 if (list) {
-  console.log(all.join('\n'));
+  console.log(all.map((f) => (OPT_IN.includes(f) ? `${f} (opt-in: --large)` : f)).join('\n'));
   process.exit(0);
 }
 
@@ -120,7 +128,11 @@ if (unknown.length > 0) {
   console.error(`unknown family: ${unknown.join(', ')}; available: ${all.join(', ')}`);
   process.exit(2);
 }
-const families = wanted ?? all;
+// Opt-in families run when named, with --large, or in smoke mode (so CI verifies them).
+const optIn = large || config.smoke;
+const families = wanted
+  ? [...new Set([...wanted, ...(large ? OPT_IN : [])])]
+  : all.filter((f) => optIn || !OPT_IN.includes(f));
 
 const tmp = mkdtempSync(join(tmpdir(), 'ts-hash-map-bench-'));
 const merged: ResultFile = {

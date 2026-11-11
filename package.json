@@ -62,6 +62,7 @@
     "bench:compare": "tsx bench/compare.ts",
     "bench:branches": "tsx bench/branches.ts",
     "bench:memory": "node --expose-gc --import tsx bench/memory.ts",
+    "bench:large": "tsx bench/run.ts --family large",
     "bench:profile": "tsx bench/profile/run.ts",
     "bench:profile:smoke": "tsx bench/profile/run.ts --smoke",
     "bench:ratios": "tsx bench/ratios.ts",
