@@ -8,12 +8,13 @@
  * Each row shows HashMap's median, the group's baseline and the HashMap/baseline ratio, plus the
  * fastest native Map row in the group when it is not the baseline (e.g. Map over same-instance
  * keys). Groups whose baseline is HashMap itself (adversarial) are left out unless --all. Output is
- * a Markdown table.
+ * a Markdown table. With several files, each row's ratio is taken within each file (against that
+ * file's own baseline) and the table shows the median over files.
  */
 import { readFileSync } from 'node:fs';
 import { exitWithUsage, isHelp } from './lib/config.ts';
 import { SCHEMA, type CaseRecord, type ResultFile } from './lib/report.ts';
-import { formatNs, formatRatio } from './lib/stats.ts';
+import { formatNs, formatRatio, quantile } from './lib/stats.ts';
 
 const USAGE = `usage: npm run bench:ratios -- <result.json> [more.json ...] [options]
 
@@ -68,68 +69,105 @@ if (files.length === 0) {
   exitWithUsage(USAGE, 'give at least one result file');
 }
 
-const cases: CaseRecord[] = [];
+const median = (xs: number[]): number =>
+  quantile(
+    xs.toSorted((a, b) => a - b),
+    0.5,
+  );
+
+/** One library row in one result file, divided by that file's own baseline (same process). */
+interface Measure {
+  hm: number;
+  base: number;
+  ratio: number;
+  best: { impl: string; ratio: number } | undefined;
+}
+
+// Several files (e.g. alternating runs) are kept apart: each row is divided by the baseline from
+// its own file, and the table shows the median over files per row.
+const perRow = new Map<string, { baseImpl: string; measures: Measure[] }>();
 for (const file of files) {
   const res = JSON.parse(readFileSync(file, 'utf8')) as ResultFile;
   if (res.schema !== SCHEMA) {
     exitWithUsage(USAGE, `${file}: expected schema ${SCHEMA}, got ${res.schema}`);
   }
-  cases.push(...res.cases);
-}
-
-const byGroup = new Map<string, CaseRecord[]>();
-for (const c of cases) {
-  if (c.error) {
-    continue;
+  const byGroup = new Map<string, CaseRecord[]>();
+  for (const c of res.cases) {
+    if (c.error) {
+      continue;
+    }
+    const g = `${c.family}/${c.group}`;
+    const list = byGroup.get(g) ?? [];
+    list.push(c);
+    byGroup.set(g, list);
   }
-  const g = `${c.family}/${c.group}`;
-  const list = byGroup.get(g) ?? [];
-  list.push(c);
-  byGroup.set(g, list);
+  for (const [g, cs] of byGroup) {
+    const base = cs.find((c) => c.baseline);
+    if (!base || (!all && LIBRARY_ROW.test(base.impl))) {
+      continue;
+    }
+    const best = cs
+      .filter((c) => NATIVE_ROW.test(c.impl) && c !== base)
+      .toSorted((a, b) => a.median - b.median)[0];
+    for (const c of cs) {
+      const id = `${g}/${c.impl}`;
+      if (c.baseline || !LIBRARY_ROW.test(c.impl) || (filter && !filter.test(id))) {
+        continue;
+      }
+      const entry = perRow.get(id) ?? { baseImpl: base.impl, measures: [] };
+      entry.measures.push({
+        hm: c.median,
+        base: base.median,
+        ratio: c.median / base.median,
+        best:
+          best && best.median < base.median
+            ? { impl: best.impl, ratio: c.median / best.median }
+            : undefined,
+      });
+      perRow.set(id, entry);
+    }
+  }
 }
 
 interface Row {
   id: string;
-  hm: CaseRecord;
-  base: CaseRecord;
+  baseImpl: string;
+  hm: number;
+  base: number;
   ratio: number;
-  best: CaseRecord | undefined;
+  best: { impl: string; ratio: number } | undefined;
+  runs: number;
 }
 
-const rows: Row[] = [];
-for (const [g, cs] of byGroup) {
-  const base = cs.find((c) => c.baseline);
-  if (!base || (!all && LIBRARY_ROW.test(base.impl))) {
-    continue;
-  }
-  const best = cs
-    .filter((c) => NATIVE_ROW.test(c.impl) && c !== base)
-    .toSorted((a, b) => a.median - b.median)[0];
-  for (const c of cs) {
-    const id = `${g}/${c.impl}`;
-    if (c.baseline || !LIBRARY_ROW.test(c.impl) || (filter && !filter.test(id))) {
-      continue;
-    }
-    rows.push({
-      id,
-      hm: c,
-      base,
-      ratio: c.median / base.median,
-      best: best && best.median < base.median ? best : undefined,
-    });
-  }
-}
+const rows: Row[] = [...perRow].map(([id, { baseImpl, measures }]) => {
+  const bests = measures.flatMap((m) => (m.best ? [m.best] : []));
+  return {
+    id,
+    baseImpl,
+    hm: median(measures.map((m) => m.hm)),
+    base: median(measures.map((m) => m.base)),
+    ratio: median(measures.map((m) => m.ratio)),
+    // Shown when the faster native row beat the baseline in most files.
+    best:
+      bests.length * 2 > measures.length
+        ? { impl: bests[0]!.impl, ratio: median(bests.map((b) => b.ratio)) }
+        : undefined,
+    runs: measures.length,
+  };
+});
 rows.sort((a, b) => b.ratio - a.ratio);
 
+const multi = files.length > 1;
 const lines = [
-  '| row | ns/op | baseline | baseline ns/op | ratio | faster native row |',
-  '|---|---|---|---|---|---|',
+  `| row | ns/op | baseline | baseline ns/op | ratio | faster native row |${multi ? ' files |' : ''}`,
+  `|---|---|---|---|---|---|${multi ? '---|' : ''}`,
   ...rows
     .slice(0, top)
     .map(
       (r) =>
-        `| ${r.id} | ${formatNs(r.hm.median)} | ${r.base.impl} | ${formatNs(r.base.median)} | ` +
-        `${formatRatio(r.ratio)} | ${r.best ? `${r.best.impl} ${formatRatio(r.hm.median / r.best.median)}` : '-'} |`,
+        `| ${r.id} | ${formatNs(r.hm)} | ${r.baseImpl} | ${formatNs(r.base)} | ` +
+        `${formatRatio(r.ratio)} | ${r.best ? `${r.best.impl} ${formatRatio(r.best.ratio)}` : '-'} |` +
+        (multi ? ` ${r.runs} |` : ''),
     ),
 ];
 console.log(lines.join('\n'));
