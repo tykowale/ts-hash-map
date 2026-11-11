@@ -1,16 +1,10 @@
-import { HashMap } from './hash-map';
-import { v4 as uuidv4 } from 'uuid';
+import { HashMap } from '../src/index.ts';
+import { randomUUID as uuidv4 } from 'node:crypto';
 
 const iterations = 100000;
 const maxSize = 100;
 const keys = generateRandomKeys(maxSize);
 const results: any[] = [];
-
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 function generateRandomKeys(size: number): string[] {
   const keys: string[] = [];

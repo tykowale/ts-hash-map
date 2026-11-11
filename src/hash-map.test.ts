@@ -356,8 +356,8 @@ describe('HashMap', () => {
       const keys: { id: number }[] = [];
       const values: string[] = [];
 
-      hashMap.forEach((value, key: { id: number }) => {
-        keys.push(key);
+      hashMap.forEach((value, key) => {
+        keys.push(key as { id: number });
         values.push(value);
       });
 

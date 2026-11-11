@@ -6,8 +6,8 @@ import {
   ITERATE_ENTRIES,
   ITERATE_KEYS,
   ITERATE_VALUES,
-  IterationKind,
-  OrderedNodeSource,
+  type IterationKind,
+  type OrderedNodeSource,
   nextLiveNode,
 } from './hash-map-iterable';
 
@@ -168,7 +168,7 @@ export class HashMap<K, V> implements Map<K, V> {
     return node.value;
   }
 
-  getOrDefault(key: K, defaultValue: V) {
+  getOrDefault(key: K, defaultValue: V): V {
     const node = this.getNode(key);
 
     if (node === undefined) {
@@ -178,7 +178,7 @@ export class HashMap<K, V> implements Map<K, V> {
     return node.value;
   }
 
-  getOrThrow(key: K) {
+  getOrThrow(key: K): V {
     const node = this.getNode(key);
 
     if (node === undefined) {
