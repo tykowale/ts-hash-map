@@ -12,6 +12,7 @@ established pattern to efficiently create a `Map` using deep equality.
 - [Usage](#usage)
 - [Breaking changes in v2](#breaking-changes-in-v2)
 - [Benchmarks](#benchmarks)
+- [Development](#development)
 
 ## Installation
 
@@ -19,6 +20,14 @@ To use the HashMap class in your projects, you can install it via npm:
 
 ```bash
 npm install @tykowale/ts-hash-map
+```
+
+The package ships both ES modules and CommonJS, each with its own type declarations, and has no
+runtime dependencies. It requires Node.js 22 or newer.
+
+```ts
+import { HashMap } from '@tykowale/ts-hash-map'; // ESM
+const { HashMap } = require('@tykowale/ts-hash-map'); // CommonJS
 ```
 
 ## Usage
@@ -161,6 +170,8 @@ v2 makes `HashMap` behave like the native `Map` wherever value-equality allows, 
 
 ## Benchmarks
 
+The benchmark scripts live in `bench/` and run with `npm run benchmark` and `npm run object-benchmark`.
+
 Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map.
 These benchmarks are for Map<string, string> so an all primitive comparison
 
@@ -190,3 +201,20 @@ to apples with the above table.
 | Native Map Get    | 1247            | 0.0012470000            | 801,924               |
 | Native Map Update | 1634            | 0.0016340000            | 611,995               |
 | Native Map Delete | 1075            | 0.0010750000            | 930,232               |
+
+## Development
+
+The toolchain is TypeScript 7, [vitest](https://vitest.dev), [oxlint](https://oxc.rs/docs/guide/usage/linter),
+[oxfmt](https://oxc.rs/docs/guide/usage/formatter) and [tsdown](https://tsdown.dev). Use Node.js 22 or newer
+(`.node-version` pins the version used for development).
+
+```bash
+npm install
+npm run check        # typecheck, lint, format check, tests and build
+npm test             # run the tests once (npm run test:watch to watch)
+npm run coverage     # tests with v8 coverage
+npm run typecheck    # tsc -b
+npm run lint         # oxlint (npm run lint:fix to apply fixes)
+npm run format       # oxfmt (npm run format:check to verify only)
+npm run build        # bundle to dist/ with tsdown, then run publint and attw
+```
