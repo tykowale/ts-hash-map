@@ -306,7 +306,7 @@ for it.
 
 ### Hill climbing
 
-`--preset hill` (`lib/presets.ts`) is a fixed subset of 38 groups across key types, with
+`--preset hill` (`lib/presets.ts`) is a fixed subset of 36 groups across key types, with
 `--time 150`: about 35 s on an Apple M5, so a 3-run `bench:branches` confirm takes about 4 minutes. Besides the core get/set/churn rows it holds
 `int clear`, `date` and `string-100` gets, small-map lifecycles at n = 4 and 16 (int, user-record),
 the polluted int and user-record gets, the upsert and 90/10 rows (int, tuple) and strided-int
@@ -320,7 +320,7 @@ a family process, so a subset is not comparable with a full run. To grow the sub
 npm run bench:branches -- --base HEAD --runs 3 --preset hill         # A/A once: calibrate noise
 npm run bench:profile -- --workload int --n 1000 --op get-hit --no-inline  # 1. find the hot frame
 npm run bench -- --preset hill --out bench/results/try.json          # 2. quick screen
-npm run bench:branches -- --base HEAD --runs 3 --threshold 2 --preset hill --summary \
+npm run bench:branches -- --base HEAD --runs 3 --threshold 3 --preset hill --summary \
   --target 'object-keys/user-record get-hit n=1000'                  # 3. confirm
 ```
 
@@ -329,6 +329,15 @@ and re-profile the workload to check the frame shrank. `bench:branches` passes `
 `--summary`, `--accept`, `--max-regression`, `--target` and `--fail-on-regression` to
 `bench:compare`. A `--preset` run fails when one of the preset's patterns matches no group (a
 renamed group would otherwise drop out silently); with `--smoke` or `--sizes` it only warns.
+
+**Calibration** (A/A, Apple M5, Node 24.15, 3 + 3 runs at `--time 150`): the geomean came out at
+-0.3% [-0.8%, +0.1%] over the library rows, and no row was `SLOWER`, `faster`, `noisy` or
+`drift` at ±5%. The per-run HashMap/baseline ratio varied by under 1.5% (coefficient of variation
+over the 6 runs) for 22 of 50 rows, mostly the user-record, tuple and int get/set rows; 2-3.5% for
+most others; and 4-8% for `string-8`/`string-100` same-instance gets, `read-write/int upsert zipf`,
+`uuid-fresh n=10` and `from entries n=10` (bimodal, 18%). The last two were dropped from the
+preset. Hence `--threshold 3` (about twice the typical per-row A/A change), and `--runs 5` before
+taking a verdict on one of the remaining 4-8% rows. Re-calibrate on your own machine.
 
 To do it by hand, run `npm run bench -- --root ../other-checkout --out base.json` and
 `npm run bench -- --out head.json`, then `npm run bench:compare -- base.json head.json`. Pass

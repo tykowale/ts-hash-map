@@ -20,13 +20,15 @@ export interface Preset {
 export const PRESETS: Record<string, Preset> = {
   hill: {
     description:
-      '38 groups across key types, sized for a 30-40 s screen and a 3-run bench:branches',
+      '36 groups across key types, sized for a 30-40 s screen and a 3-run bench:branches',
     timeMs: 150,
     groups: [
       'int-keys/int (get-hit|get-miss|set-fresh|churn) n=1000',
       'int-keys/int get-hit n=(10|100000)',
       'int-keys/sparse-int get-hit n=100000',
-      'string-keys/uuid-fresh get-hit n=(10|1000)',
+      // uuid-fresh n=10 and from entries n=10 are left out: in the A/A calibration (Apple M5,
+      // Node 24.15, 3+3 runs at 150 ms) their per-run ratios varied by 4% and 18%.
+      'string-keys/uuid-fresh get-hit n=1000',
       'string-keys/string-8 get-hit n=1000',
       'object-keys/user-record (get-hit|get-miss|set-fresh|churn) n=1000',
       'object-keys/user-record get-hit n=(10|10000)',
@@ -34,7 +36,6 @@ export const PRESETS: Record<string, Preset> = {
       'nested-keys/nested get-hit n=1000',
       'mixed-keys/mixed get-hit n=1000',
       'iteration/for\\.\\.of entries n=1000',
-      'construction/from entries n=10',
       'construction/single resize.*',
       'int-keys/int clear n=1000',
       'int-keys/strided-int get-hit n=100000',
