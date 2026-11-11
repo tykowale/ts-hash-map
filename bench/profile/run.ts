@@ -39,6 +39,9 @@ const WORKLOAD_NAMES = [
   'int',
   'sparse-int',
   'float',
+  'strided-int',
+  'tagged-int',
+  'timestamp-ms',
   'string-8',
   'uuid',
   'string-100',
@@ -47,11 +50,13 @@ const WORKLOAD_NAMES = [
   'string-100-fresh',
   'user-record',
   'date',
+  'record-shapes',
+  'record-16',
   'tuple',
   'nested',
   'mixed',
 ];
-const PRIMITIVE = new Set(WORKLOAD_NAMES.slice(0, 9));
+const PRIMITIVE = new Set(WORKLOAD_NAMES.slice(0, 12));
 const OP_NAMES = [
   'get-hit',
   'get-hit-seq',
