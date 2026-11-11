@@ -1,21 +1,4 @@
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "es2020",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "noImplicitAny": true,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
-  }
+  "files": [],
+  "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.node.json" }]
 }

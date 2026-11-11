@@ -1,39 +1,90 @@
 import { Node } from './basic-node';
 
-export class HashMapIterable<K, V> implements Iterator<[K, V]> {
-  private index: number;
-  private node: Node<K, V> | undefined;
+/**
+ * The minimal view of a map that an iterator needs: the head of its
+ * insertion-ordered list. Iterators read it lazily so they always observe the
+ * map's current state (inserts, deletes, clear and resize).
+ */
+export interface OrderedNodeSource<K, V> {
+  readonly head: Node<K, V> | undefined;
+}
+
+export const ITERATE_ENTRIES = 0;
+export const ITERATE_KEYS = 1;
+export const ITERATE_VALUES = 2;
+export type IterationKind = typeof ITERATE_ENTRIES | typeof ITERATE_KEYS | typeof ITERATE_VALUES;
+
+/**
+ * Given the last visited node (or undefined when nothing has been visited yet),
+ * returns the next live node in insertion order, following native Map semantics:
+ * entries added later are visited, entries removed before being reached are
+ * skipped, and removing the current entry is safe.
+ */
+export function nextLiveNode<K, V>(
+  source: OrderedNodeSource<K, V>,
+  current: Node<K, V> | undefined,
+): Node<K, V> | undefined {
+  // Walk back from a removed node to the nearest node still in the map. Every
+  // live node after it was inserted after `current`, so it has not been visited.
+  while (current !== undefined && current.deleted) {
+    current = current.before;
+  }
+
+  return current === undefined ? source.head : current.after;
+}
+
+/**
+ * Iterator returned by `keys()`, `values()`, `entries()` and `[Symbol.iterator]()`.
+ *
+ * It extends the built-in `Iterator` class so instances inherit the iterator
+ * helpers (`map`, `filter`, `take`, `toArray`, ...) and, where the runtime
+ * provides it, `[Symbol.dispose]`, just like native Map iterators. That keeps it
+ * structurally compatible with `MapIterator<T>`, which `Map<K, V>` requires.
+ */
+export class HashMapIterable<K, V, T>
+  extends Iterator<T, BuiltinIteratorReturn, unknown>
+  implements MapIterator<T>
+{
+  private current: Node<K, V> | undefined = undefined;
+  private source: OrderedNodeSource<K, V> | undefined;
 
   constructor(
-    private readonly table: Array<Node<K, V> | undefined>,
-    private readonly capacity: number,
+    source: OrderedNodeSource<K, V>,
+    private readonly kind: IterationKind,
   ) {
-    this.index = 0;
-    this.node = undefined;
+    super();
+    this.source = source;
   }
 
-  next(): IteratorResult<[K, V]> {
-    while (this.index < this.capacity) {
-      if (this.node == null) {
-        this.node = this.table[this.index];
-      } else {
-        this.node = this.node.next;
-      }
+  override next(): IteratorResult<T, BuiltinIteratorReturn> {
+    const source = this.source;
 
-      if (this.node != null) {
-        return {
-          value: [this.node.key, this.node.value],
-          done: false,
-        };
-      }
-
-      this.index++;
+    if (source === undefined) {
+      return { value: undefined, done: true };
     }
 
-    return { value: undefined, done: true };
+    const node = nextLiveNode(source, this.current);
+
+    if (node === undefined) {
+      // exhausted iterators stay exhausted, like native Map iterators
+      this.source = undefined;
+      this.current = undefined;
+      return { value: undefined, done: true };
+    }
+
+    this.current = node;
+
+    switch (this.kind) {
+      case ITERATE_KEYS:
+        return { value: node.key as unknown as T, done: false };
+      case ITERATE_VALUES:
+        return { value: node.value as unknown as T, done: false };
+      default:
+        return { value: [node.key, node.value] as unknown as T, done: false };
+    }
   }
 
-  [Symbol.iterator]() {
+  override [Symbol.iterator](): MapIterator<T> {
     return this;
   }
 }

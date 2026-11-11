@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "isolatedDeclarations": true,
+    "emitDeclarationOnly": true,
+    "outDir": "node_modules/.cache/tsc/lib",
+    "types": []
+  },
+  "include": ["src"]
+}

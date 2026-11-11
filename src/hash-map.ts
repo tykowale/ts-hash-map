@@ -1,9 +1,15 @@
 import { Node } from './basic-node';
 import { getHashCode } from './hash';
 import { isEqual } from './is-equal';
-import { HashMapIterable } from './hash-map-iterable';
-import { HashMapKeysIterable } from './hash-map-keys-iterable';
-import { HashMapValuesIterable } from './hash-map-values-iterable';
+import {
+  HashMapIterable,
+  ITERATE_ENTRIES,
+  ITERATE_KEYS,
+  ITERATE_VALUES,
+  type IterationKind,
+  type OrderedNodeSource,
+  nextLiveNode,
+} from './hash-map-iterable';
 
 /**
  * Advanced options for constructing your hashmap.
@@ -11,15 +17,15 @@ import { HashMapValuesIterable } from './hash-map-values-iterable';
 export type HashMapOptions = {
   /**
    * The initial capacity of the hashmap.
-   * Must always be a factor of 2.
+   * Rounded up to the nearest power of 2. Values below 1 (or non-finite values) fall back to 1.
    * If not provided, the default initial capacity (16) is used.
    */
-  capacity?: number,
+  capacity?: number;
 
   /**
    * The load factor of the hashmap.
    * Determines when the hashmap should resize based on its size relative to its capacity.
-   * If not provided, the default load factor (0.75) is used.
+   * If not provided (or not a positive finite number), the default load factor (0.75) is used.
    */
   loadFactor?: number;
 
@@ -36,18 +42,66 @@ export type HashMapOptions = {
   equalsFn?: (a: unknown, b: unknown) => boolean;
 };
 
-export class HashMap<K, V> implements Map<K, V> {
-  readonly [Symbol.toStringTag]: string;
-  size: number;
+const DEFAULT_INITIAL_CAPACITY = 16;
+const DEFAULT_LOAD_FACTOR = 0.75;
+const MAXIMUM_CAPACITY = 1 << 30;
 
-  private DEFAULT_INITIAL_CAPACITY = 16;
-  private DEFAULT_LOAD_FACTOR = 0.75;
+function normaliseCapacity(capacity: number | undefined): number {
+  if (capacity == null) {
+    return DEFAULT_INITIAL_CAPACITY;
+  }
+
+  // oxlint-disable-next-line typescript/no-unnecessary-type-conversion -- coerce values from untyped JS callers
+  const c = Number(capacity);
+
+  if (!(c >= 1)) {
+    // 0, negatives and NaN would otherwise produce an unusable table
+    return 1;
+  }
+
+  if (c >= MAXIMUM_CAPACITY) {
+    return MAXIMUM_CAPACITY;
+  }
+
+  // round up to the nearest power of 2 if they pass in something else
+  return Math.pow(2, Math.ceil(Math.log2(c)));
+}
+
+function normaliseLoadFactor(loadFactor: number | undefined): number {
+  if (loadFactor == null) {
+    return DEFAULT_LOAD_FACTOR;
+  }
+
+  // oxlint-disable-next-line typescript/no-unnecessary-type-conversion -- coerce values from untyped JS callers
+  const lf = Number(loadFactor);
+
+  return lf > 0 && lf !== Infinity ? lf : DEFAULT_LOAD_FACTOR;
+}
+
+/**
+ * A hash map keyed by value (via `hashFn` / `equalsFn`) that otherwise behaves like
+ * the native `Map`: iteration follows insertion order and is live, so entries added
+ * during iteration are visited, entries removed before being reached are skipped,
+ * and `clear()` or a resize never invalidates an iterator.
+ *
+ * Internally every node lives in two structures: a bucket chain (`next`) used for
+ * lookups, and a doubly linked insertion-order list (`before` / `after`) used for
+ * iteration. Resizing only rebuilds the bucket chains.
+ */
+export class HashMap<K, V> implements Map<K, V> {
+  private readonly DEFAULT_INITIAL_CAPACITY = DEFAULT_INITIAL_CAPACITY;
+  private readonly DEFAULT_LOAD_FACTOR = DEFAULT_LOAD_FACTOR;
 
   private capacity: number;
   private loadFactor: number;
   private hashFn: (value: unknown) => number;
   private isEqual: (a: unknown, b: unknown) => boolean;
   private table: Array<Node<K, V> | undefined>;
+  private count: number;
+  /** Oldest live node in insertion order. */
+  private head: Node<K, V> | undefined;
+  /** Newest live node in insertion order. */
+  private tail: Node<K, V> | undefined;
 
   /**
    * Constructs a hashmap with no elements and the default options
@@ -65,30 +119,24 @@ export class HashMap<K, V> implements Map<K, V> {
    * Constructs a hashmap with provided elements and the provided options
    */
   constructor(initialValues: Array<[K, V]>, options: HashMapOptions);
-  constructor(
-    initialValuesOrOptions?: Array<[K, V]> | HashMapOptions,
-    options?: HashMapOptions,
-  ) {
+  constructor(initialValuesOrOptions?: Array<[K, V]> | HashMapOptions, options?: HashMapOptions) {
     let initVals: Array<[K, V]> | undefined;
-    const opts: Partial<HashMapOptions> = {};
+    let opts: HashMapOptions | undefined;
 
     if (Array.isArray(initialValuesOrOptions)) {
       initVals = initialValuesOrOptions;
-      Object.assign(opts, options);
-    } else if (typeof initialValuesOrOptions === 'object') {
-      Object.assign(opts, initialValuesOrOptions);
+      opts = options;
+    } else if (initialValuesOrOptions != null && typeof initialValuesOrOptions === 'object') {
+      opts = initialValuesOrOptions;
     }
 
-    if (opts.capacity != null) {
-      // round up to the nearest power of 2 if they pass in something else
-      opts.capacity = Math.pow(2, Math.ceil(Math.log2(opts.capacity)));
-    }
-
-    this.capacity = opts.capacity ?? this.DEFAULT_INITIAL_CAPACITY;
-    this.loadFactor = opts.loadFactor ?? this.DEFAULT_LOAD_FACTOR;
-    this.hashFn = opts.hashFn ?? getHashCode;
-    this.isEqual = opts.equalsFn ?? isEqual;
-    this.size = 0;
+    this.capacity = normaliseCapacity(opts?.capacity);
+    this.loadFactor = normaliseLoadFactor(opts?.loadFactor);
+    this.hashFn = opts?.hashFn ?? getHashCode;
+    this.isEqual = opts?.equalsFn ?? isEqual;
+    this.count = 0;
+    this.head = undefined;
+    this.tail = undefined;
     this.table = new Array(this.capacity);
 
     if (initVals != null) {
@@ -96,6 +144,17 @@ export class HashMap<K, V> implements Map<K, V> {
         this.set(key, value);
       }
     }
+  }
+
+  /**
+   * The number of entries in the map. Read-only, like `Map.prototype.size`.
+   */
+  get size(): number {
+    return this.count;
+  }
+
+  get [Symbol.toStringTag](): string {
+    return 'HashMap';
   }
 
   get(key: K): V | undefined {
@@ -108,7 +167,7 @@ export class HashMap<K, V> implements Map<K, V> {
     return node.value;
   }
 
-  getOrDefault(key: K, defaultValue: V) {
+  getOrDefault(key: K, defaultValue: V): V {
     const node = this.getNode(key);
 
     if (node === undefined) {
@@ -118,7 +177,7 @@ export class HashMap<K, V> implements Map<K, V> {
     return node.value;
   }
 
-  getOrThrow(key: K) {
+  getOrThrow(key: K): V {
     const node = this.getNode(key);
 
     if (node === undefined) {
@@ -129,15 +188,14 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   has(key: K): boolean {
-    const node = this.getNode(key);
-
-    return node != null;
+    return this.getNode(key) !== undefined;
   }
 
   set(key: K, value: V): this {
     const hash = this.hash(key);
-    const index = this.hashIndex(hash);
-    let node: Node<K, V> | undefined = this.table[index];
+    const index = hash & (this.capacity - 1);
+    const bucket = this.table[index];
+    let node: Node<K, V> | undefined = bucket;
 
     // if the key is already in the map we need to update it
     while (node !== undefined) {
@@ -149,10 +207,27 @@ export class HashMap<K, V> implements Map<K, V> {
       node = node.next;
     }
 
-    this.table[index] = new Node<K, V>(key, value, hash, this.table[index]);
-    this.size++;
+    // like native Map, a -0 key is stored as +0
+    if ((key as unknown) === 0) {
+      key = 0 as unknown as K;
+    }
 
-    if (this.size > (this.capacity * this.loadFactor)) {
+    const created = new Node<K, V>(key, value, hash, bucket);
+    this.table[index] = created;
+
+    // append to the insertion-order list
+    const tail = this.tail;
+    created.before = tail;
+    if (tail === undefined) {
+      this.head = created;
+    } else {
+      tail.after = created;
+    }
+    this.tail = created;
+
+    this.count++;
+
+    if (this.count > this.capacity * this.loadFactor) {
       this.resize();
     }
 
@@ -160,13 +235,28 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   clear(): void {
+    // Mark every node as removed so live iterators skip them. Dropping `before`
+    // lets such an iterator jump straight back to the (now empty) head.
+    let node = this.head;
+
+    while (node !== undefined) {
+      const after: Node<K, V> | undefined = node.after;
+      node.deleted = true;
+      node.before = undefined;
+      node.after = undefined;
+      node.next = undefined;
+      node = after;
+    }
+
     this.table = new Array(this.capacity);
-    this.size = 0;
+    this.count = 0;
+    this.head = undefined;
+    this.tail = undefined;
   }
 
   delete(key: K): boolean {
     const hash = this.hash(key);
-    const index = this.hashIndex(hash);
+    const index = hash & (this.capacity - 1);
     let currNode: Node<K, V> | undefined = this.table[index];
     let prevNode: Node<K, V> | undefined = undefined;
 
@@ -178,7 +268,8 @@ export class HashMap<K, V> implements Map<K, V> {
           prevNode.next = currNode.next;
         }
 
-        this.size--;
+        this.unlink(currNode);
+        this.count--;
         return true;
       }
 
@@ -189,42 +280,75 @@ export class HashMap<K, V> implements Map<K, V> {
     return false;
   }
 
-
   forEach(callBackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
-    for (const [key, value] of this) {
-      callBackFn.call(thisArg, value, key, this);
+    const source = this.asSource();
+    let node = nextLiveNode(source, undefined);
+
+    while (node !== undefined) {
+      callBackFn.call(thisArg, node.value, node.key, this);
+      node = nextLiveNode(source, node);
     }
   }
 
-  values(): IterableIterator<V> {
-    return new HashMapValuesIterable(this.table, this.capacity);
+  values(): MapIterator<V> {
+    return this.iterator<V>(ITERATE_VALUES);
   }
 
-  [Symbol.iterator](): IterableIterator<[K, V]> {
-    return new HashMapIterable(this.table, this.capacity);
+  [Symbol.iterator](): MapIterator<[K, V]> {
+    return this.iterator<[K, V]>(ITERATE_ENTRIES);
   }
 
-  entries(): IterableIterator<[K, V]> {
-    return new HashMapIterable(this.table, this.capacity);
+  entries(): MapIterator<[K, V]> {
+    return this.iterator<[K, V]>(ITERATE_ENTRIES);
   }
 
-  keys(): IterableIterator<K> {
-    return new HashMapKeysIterable(this.table, this.capacity);
+  keys(): MapIterator<K> {
+    return this.iterator<K>(ITERATE_KEYS);
   }
 
+  private iterator<T>(kind: IterationKind): MapIterator<T> {
+    return new HashMapIterable<K, V, T>(this.asSource(), kind);
+  }
 
+  private asSource(): OrderedNodeSource<K, V> {
+    return this as unknown as OrderedNodeSource<K, V>;
+  }
+
+  /**
+   * Removes a node from the insertion-order list. The node keeps its own
+   * `before` / `after` pointers so an iterator currently on it can continue.
+   */
+  private unlink(node: Node<K, V>): void {
+    const before = node.before;
+    const after = node.after;
+
+    if (before === undefined) {
+      this.head = after;
+    } else {
+      before.after = after;
+    }
+
+    if (after === undefined) {
+      this.tail = before;
+    } else {
+      after.before = before;
+    }
+
+    node.deleted = true;
+    node.next = undefined;
+  }
+
+  /**
+   * Normalises the user hash to a 32-bit integer so that NaN, floats and
+   * out-of-range values still compare equal to themselves and index the table.
+   */
   private hash(key: K): number {
-    return this.hashFn(key);
-  }
-
-  private hashIndex(hash: number): number {
-    return hash & (this.capacity - 1);
+    return this.hashFn(key) | 0;
   }
 
   private getNode(key: K): Node<K, V> | undefined {
     const hash = this.hash(key);
-    const index = this.hashIndex(hash);
-    let node: Node<K, V> | undefined = this.table[index];
+    let node: Node<K, V> | undefined = this.table[hash & (this.capacity - 1)];
 
     while (node !== undefined) {
       if (node.hash === hash && this.isEqual(key, node.key)) {
@@ -238,26 +362,23 @@ export class HashMap<K, V> implements Map<K, V> {
   }
 
   private resize() {
-    const oldCapacity = this.capacity;
+    if (this.capacity >= MAXIMUM_CAPACITY) {
+      return;
+    }
+
     this.capacity *= 2;
 
+    // Rebuild the bucket chains from the insertion-order list. Iterators walk that
+    // list rather than the table, so they are unaffected.
+    const mask = this.capacity - 1;
     const newTable = new Array<Node<K, V> | undefined>(this.capacity);
+    let node = this.head;
 
-    for (let i = 0; i < oldCapacity; i++) {
-      let curr = this.table[i];
-
-      while (curr !== undefined) {
-        const next = curr.next;
-        // cool little trick because capacity is a power of 2 we can treat capacity as a mask
-        // ie capacity = 16. Since we do minus one this makes sure everything is between
-        // [0, this.capacity - 1] so it's good for the hashmap
-        const newIndex = curr.hash & (this.capacity - 1);
-
-        curr.next = newTable[newIndex];
-        newTable[newIndex] = curr;
-
-        curr = next;
-      }
+    while (node !== undefined) {
+      const index = node.hash & mask;
+      node.next = newTable[index];
+      newTable[index] = node;
+      node = node.after;
     }
 
     this.table = newTable;

@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "node_modules/.cache/tsc/node",
+    "types": ["node"]
+  },
+  "include": ["bench", "*.config.ts"],
+  "references": [{ "path": "./tsconfig.lib.json" }]
+}
