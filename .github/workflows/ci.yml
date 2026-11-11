@@ -65,6 +65,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run bench:smoke -- --out bench/results/smoke.json
+      # Verifies every profile workload x op, then profiles two short runs end to end.
+      - run: npm run bench:profile:smoke
       - if: always()
         uses: actions/upload-artifact@v7
         with:

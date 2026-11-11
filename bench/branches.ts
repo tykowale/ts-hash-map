@@ -13,13 +13,16 @@
  *
  * The library has no runtime dependencies and the scenarios import the target's src/ directly,
  * so the worktree needs no npm install (unless you pass --dist, which builds both sides).
- * Any other flag (--family, --filter, --time, --sizes, --dist, --smoke) is passed to bench/run.ts;
- * --help lists them, and an unknown flag is an error.
+ * Any other flag (--family, --filter, --preset, --large, --time, --sizes, --dist, --smoke) is passed to
+ * bench/run.ts; --threshold, --summary, --accept, --max-regression, --target and
+ * --fail-on-regression, --all are passed to compare.ts. --help lists them, and an
+ * unknown flag is an error.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { CONFIG_USAGE, checkArgs, exitWithUsage, isHelp, parseConfig } from './lib/config.ts';
+import { PRESET_USAGE, getPreset } from './lib/presets.ts';
 
 const REPO = resolve(import.meta.dirname, '..');
 const USAGE = `usage: npm run bench:branches -- [options]
@@ -31,6 +34,19 @@ Branch options:
   --runs <n>          runs per side, alternating base and head (default 3)
   --worktree <dir>    where to check out the base (default ../ts-hash-map-bench-base)
   --family <a,b,...>  only run these families
+  --large             also run the opt-in large tier
+${PRESET_USAGE}
+
+Compare options (passed to bench:compare):
+  --threshold <pct>   change beyond which a row is judged slower/faster (default 5)
+  --summary           print the geomean summary line (see bench:compare --help)
+  --accept <pct>      summary PASS needs a geomean gain of at least this much (default 2)
+  --max-regression <pct>
+                      summary FAIL threshold for a single row (default 3)
+  --target <regex>    summary PASS also needs a matching row to be faster
+  --fail-on-regression
+                      exit 1 when any row is SLOWER
+  --all               print unchanged rows too
 
 ${CONFIG_USAGE}
 
@@ -44,6 +60,7 @@ let baseRef: string | undefined;
 let runs = 3;
 let worktree = resolve(REPO, '..', 'ts-hash-map-bench-base');
 const forward: string[] = [];
+const compareArgs: string[] = [];
 const value = (i: number, flag: string): string => {
   const v = argv[i];
   if (v === undefined || v.startsWith('--')) {
@@ -59,6 +76,15 @@ for (let i = 0; i < argv.length; i++) {
     runs = Number(value(++i, a));
   } else if (a === '--worktree') {
     worktree = resolve(value(++i, a));
+  } else if (
+    a === '--threshold' ||
+    a === '--accept' ||
+    a === '--max-regression' ||
+    a === '--target'
+  ) {
+    compareArgs.push(a, value(++i, a));
+  } else if (a === '--summary' || a === '--fail-on-regression' || a === '--all') {
+    compareArgs.push(a);
   } else if (a === '--root' || a === '--out') {
     exitWithUsage(USAGE, `${a} is set by bench:branches itself`);
   } else {
@@ -69,12 +95,20 @@ for (let i = 0; i < argv.length; i++) {
 const leftover: string[] = [];
 const { rest } = parseConfig(forward);
 for (let i = 0; i < rest.length; i++) {
-  if (rest[i] === '--family') {
-    const families = rest[++i];
-    if (families === undefined || families.startsWith('-')) {
-      exitWithUsage(USAGE, '--family needs a value');
+  if (rest[i] === '--family' || rest[i] === '--preset') {
+    const flag = rest[i]!;
+    const v = rest[++i];
+    if (v === undefined || v.startsWith('-')) {
+      exitWithUsage(USAGE, `${flag} needs a value`);
     }
-  } else {
+    if (flag === '--preset') {
+      try {
+        getPreset(v);
+      } catch (err) {
+        exitWithUsage(USAGE, (err as Error).message);
+      }
+    }
+  } else if (rest[i] !== '--large') {
     leftover.push(rest[i]!);
   }
 }
@@ -160,6 +194,7 @@ const cmp = spawnSync(
     files.base.join(','),
     '--head',
     files.head.join(','),
+    ...compareArgs,
   ],
   { stdio: 'inherit' },
 );

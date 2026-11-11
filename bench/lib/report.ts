@@ -71,7 +71,14 @@ export interface ResultFile {
   createdAt: string;
   target: { root: string; dist: boolean; git: GitInfo };
   env: { node: string; v8: string; platform: string; arch: string; cpu: string };
-  config: { smoke: boolean; timeMs: number; filter: string | null; sizes: number[] | null };
+  config: {
+    smoke: boolean;
+    timeMs: number;
+    filter: string | null;
+    sizes: number[] | null;
+    /** Set by run.ts for `--preset` runs; absent in per-family files and older results. */
+    preset?: string | null;
+  };
   families: Array<{ family: string; durationMs: number; noopNs: number }>;
   cases: CaseRecord[];
 }

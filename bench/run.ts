@@ -9,6 +9,8 @@
  *   npm run bench:smoke                            # tiny sizes, ~1ms per case, verifies everything
  *   npm run bench -- --out bench/results/head.json
  *   npm run bench -- --dist                        # benchmark the built dist/index.mjs
+ *   npm run bench -- --preset hill                 # a named subset (bench/lib/presets.ts)
+ *   npm run bench -- --large                       # also run the opt-in large tier (1M entries)
  *
  * Every other flag (--time, --sizes, --root) is forwarded to the family processes. --help lists
  * them; an unknown flag is an error.
@@ -17,17 +19,13 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import {
-  CONFIG_USAGE,
-  checkArgs,
-  config,
-  exitWithUsage,
-  isHelp,
-  parseConfig,
-} from './lib/config.ts';
+import { CONFIG_USAGE, checkArgs, exitWithUsage, isHelp, parseConfig } from './lib/config.ts';
+import { getPreset, PRESET_USAGE, presetArgs, unmatchedPatterns } from './lib/presets.ts';
 import { environment, gitInfo, SCHEMA, type ResultFile } from './lib/report.ts';
 
 const SCENARIO_DIR = join(import.meta.dirname, 'scenarios');
+/** Families left out of a default run: too slow or memory-hungry for every screen. */
+const OPT_IN = ['large'];
 
 const USAGE = `usage: npm run bench -- [options]
 
@@ -36,21 +34,59 @@ Runs every scenario family (bench/scenarios/*.ts) in its own Node process.
 Runner options:
   --family <a,b,...>  only run these families (see --list)
   --list              print the available families and exit
+  --large             also run the opt-in families (${OPT_IN.join(', ')}); smoke mode always
+                      includes them, and --family can name them directly
+${PRESET_USAGE}
 
 ${CONFIG_USAGE}`;
 
-const argv = process.argv.slice(2);
-if (isHelp(argv)) {
+const rawArgv = process.argv.slice(2);
+if (isHelp(rawArgv)) {
   exitWithUsage(USAGE);
+}
+
+// --preset expands into --filter and --time placed before the user's own flags, so an explicit
+// --time (or --sizes) still wins. It picks the families itself.
+let preset: string | undefined;
+let presetFamilies: string[] | undefined;
+let argv = rawArgv;
+const presetAt = rawArgv.indexOf('--preset');
+if (presetAt >= 0) {
+  const name = rawArgv[presetAt + 1];
+  if (name === undefined || name.startsWith('-')) {
+    exitWithUsage(USAGE, '--preset needs a value');
+  }
+  if (rawArgv.includes('--family') || rawArgv.includes('--filter')) {
+    exitWithUsage(USAGE, '--preset cannot be combined with --family or --filter');
+  }
+  if (rawArgv.lastIndexOf('--preset') !== presetAt) {
+    exitWithUsage(USAGE, '--preset can only be given once');
+  }
+  let expanded: ReturnType<typeof presetArgs>;
+  try {
+    expanded = presetArgs(name);
+  } catch (err) {
+    exitWithUsage(USAGE, (err as Error).message);
+  }
+  preset = name;
+  presetFamilies = expanded.families;
+  argv = [...expanded.args, ...rawArgv.toSpliced(presetAt, 2)];
 }
 
 // Shared flags are forwarded to every family process, except --out: the runner merges results
 // itself, and each family writes to its own temp file.
 const forward: string[] = [];
 const leftover: string[] = [];
-let wanted: string[] | undefined;
+let wanted: string[] | undefined = presetFamilies;
 let list = false;
-const { rest } = parseConfig(argv);
+let large = false;
+let parsed: ReturnType<typeof parseConfig>;
+try {
+  parsed = parseConfig(argv);
+} catch (err) {
+  exitWithUsage(USAGE, (err as Error).message);
+}
+const { config, rest } = parsed;
 for (let i = 0; i < rest.length; i++) {
   const arg = rest[i]!;
   if (arg === '--family') {
@@ -61,6 +97,8 @@ for (let i = 0; i < rest.length; i++) {
     wanted = value.split(',').filter(Boolean);
   } else if (arg === '--list') {
     list = true;
+  } else if (arg === '--large') {
+    large = true;
   } else {
     leftover.push(arg);
   }
@@ -70,7 +108,7 @@ for (let i = 0; i < argv.length; i++) {
   const arg = argv[i]!;
   if (arg === '--out' || arg === '--family') {
     i++;
-  } else if (arg !== '--list') {
+  } else if (arg !== '--list' && arg !== '--large') {
     forward.push(arg);
   }
 }
@@ -81,7 +119,7 @@ const all = readdirSync(SCENARIO_DIR)
   .sort();
 
 if (list) {
-  console.log(all.join('\n'));
+  console.log(all.map((f) => (OPT_IN.includes(f) ? `${f} (opt-in: --large)` : f)).join('\n'));
   process.exit(0);
 }
 
@@ -90,7 +128,11 @@ if (unknown.length > 0) {
   console.error(`unknown family: ${unknown.join(', ')}; available: ${all.join(', ')}`);
   process.exit(2);
 }
-const families = wanted ?? all;
+// Opt-in families run when named, with --large, or in smoke mode (so CI verifies them).
+const optIn = large || config.smoke;
+const families = wanted
+  ? [...new Set([...wanted, ...(large ? OPT_IN : [])])]
+  : all.filter((f) => optIn || !OPT_IN.includes(f));
 
 const tmp = mkdtempSync(join(tmpdir(), 'ts-hash-map-bench-'));
 const merged: ResultFile = {
@@ -103,6 +145,7 @@ const merged: ResultFile = {
     timeMs: config.timeMs,
     filter: config.filter?.source ?? null,
     sizes: config.sizes ?? null,
+    preset: preset ?? null,
   },
   families: [],
   cases: [],
@@ -111,7 +154,8 @@ const merged: ResultFile = {
 const failed: string[] = [];
 const started = performance.now();
 console.log(
-  `ts-hash-map bench: ${families.length} families, ${config.smoke ? 'smoke' : 'full'} mode, ` +
+  `ts-hash-map bench: ${families.length} families${preset ? ` (preset ${preset})` : ''}, ` +
+    `${config.smoke ? 'smoke' : 'full'} mode, ` +
     `${config.timeMs}ms/case, ${merged.env.node} ${merged.env.arch}, ${merged.env.cpu}` +
     `\ntarget: ${config.root}${config.dist ? ' (dist)' : ' (src)'} @ ${merged.target.git.sha?.slice(0, 10) ?? '?'}` +
     (merged.target.git.dirty ? ' (dirty)' : ''),
@@ -145,6 +189,24 @@ for (const family of families) {
   }
 }
 rmSync(tmp, { recursive: true, force: true });
+
+if (preset) {
+  const missing = unmatchedPatterns(
+    getPreset(preset),
+    merged.cases.map((c) => `${c.family}/${c.group}`),
+  );
+  if (missing.length > 0) {
+    // --smoke and --sizes change the sizes in the group names, so some patterns cannot match.
+    const partial = config.smoke || config.sizes !== undefined;
+    const msg = `preset ${preset}: ${missing.length} pattern(s) matched no group: ${missing.join(', ')}`;
+    if (partial) {
+      console.warn(`\nwarning: ${msg} (expected with --smoke or --sizes)`);
+    } else {
+      console.error(`\n${msg}`);
+      failed.push(`preset ${preset}`);
+    }
+  }
+}
 
 if (config.out) {
   mkdirSync(dirname(config.out), { recursive: true });
