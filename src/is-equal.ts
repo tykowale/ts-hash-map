@@ -200,7 +200,7 @@ function isObjectEqual(a: any, b: any, stack: Stack): boolean {
   }
 
   for (let i = 0; i < keysA.length; i++) {
-    const key = keysA[i];
+    const key = keysA[i]!;
     // fast path: same key at the same position (counts are equal and keys unique, so it is own
     // enumerable in b); otherwise check own-key membership so {a: undefined} !== {b: undefined}
     if ((keysB[i] !== key && !propIsEnumerable.call(b, key)) || !eq(a[key], b[key], stack)) {
@@ -214,7 +214,7 @@ function isObjectEqual(a: any, b: any, stack: Stack): boolean {
     return false;
   }
   for (let i = 0; i < symsA.length; i++) {
-    const sym = symsA[i];
+    const sym = symsA[i]!;
     if (!propIsEnumerable.call(b, sym) || !eq(a[sym], b[sym], stack)) {
       return false;
     }

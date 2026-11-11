@@ -32,7 +32,7 @@ function randomValue(rand: () => number, depth = 0): unknown {
       const obj: Record<string, unknown> = {};
       const n = Math.floor(rand() * 3);
       for (let i = 0; i < n; i++) {
-        obj[['x', 'y', 'z'][i]] = randomValue(rand, depth + 1);
+        obj[['x', 'y', 'z'][i]!] = randomValue(rand, depth + 1);
       }
       return obj;
     }

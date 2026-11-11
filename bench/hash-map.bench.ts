@@ -43,9 +43,11 @@ function testHashMap(): void {
     hashMapSet.push(mapSet);
     hashMapUpdate.push(mapUpdate);
     hashMapDelete.push(mapDelete);
-    mapSet.set(keys[i], `value_${keys[i]}`);
-    mapUpdate.set(keys[i], `value_${keys[i]}`);
-    mapDelete.set(keys[i], `value_${keys[i]}`);
+    // keys has maxSize entries; cycle through them for every map
+    const key = keys[i % keys.length]!;
+    mapSet.set(key, `value_${key}`);
+    mapUpdate.set(key, `value_${key}`);
+    mapDelete.set(key, `value_${key}`);
   }
 
   benchmarkOperation('hash map set', () => {
@@ -94,9 +96,11 @@ function testMap(): void {
     mapSet.push(mapSetInstance);
     mapUpdate.push(mapUpdateInstance);
     mapDelete.push(mapDeleteInstance);
-    mapSetInstance.set(keys[i], `value_${keys[i]}`);
-    mapUpdateInstance.set(keys[i], `value_${keys[i]}`);
-    mapDeleteInstance.set(keys[i], `value_${keys[i]}`);
+    // keys has maxSize entries; cycle through them for every map
+    const key = keys[i % keys.length]!;
+    mapSetInstance.set(key, `value_${key}`);
+    mapUpdateInstance.set(key, `value_${key}`);
+    mapDeleteInstance.set(key, `value_${key}`);
   }
 
   benchmarkOperation('native map set', () => {

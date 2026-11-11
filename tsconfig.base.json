@@ -7,6 +7,7 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,

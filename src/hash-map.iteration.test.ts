@@ -344,8 +344,8 @@ describe('HashMap iteration', () => {
       m.set({ a: [1, 2] }, 2);
       const entries = [...m.entries()];
       expect(entries).toHaveLength(1);
-      expect(entries[0][0]).toBe(original);
-      expect(entries[0][1]).toBe(2);
+      expect(entries[0]![0]).toBe(original);
+      expect(entries[0]![1]).toBe(2);
     });
   });
 
@@ -439,7 +439,7 @@ describe('HashMap iteration', () => {
         calls.push([this, v, k, map]);
       }, ctx);
       expect(calls).toEqual([[ctx, 1, 'a', m]]);
-      expect(calls[0][3]).toBe(m);
+      expect(calls[0]![3]).toBe(m);
     });
 
     it('is not called on an empty map', () => {
@@ -504,7 +504,7 @@ describe('HashMap iteration', () => {
       const seen: number[] = [];
       for (const k of m.keys()) {
         seen.push(k);
-        if (k === order[0]) m.delete(order[3]);
+        if (k === order[0]) m.delete(order[3]!);
       }
       expect(seen).toEqual(order.filter((k) => k !== order[3]));
     });
@@ -528,7 +528,7 @@ describe('HashMap iteration', () => {
         seen.push(k);
         if (k === order[0]) {
           m.delete(order[0]);
-          m.delete(order[1]);
+          m.delete(order[1]!);
         }
       }
       expect(seen).toEqual([order[0], order[2]]);

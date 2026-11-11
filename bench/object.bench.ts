@@ -65,9 +65,11 @@ function testHashMap(): void {
     hashMapSet.push(mapSet);
     hashMapUpdate.push(mapUpdate);
     hashMapDelete.push(mapDelete);
-    mapSet.set(keys[i], `value_${keys[i]}`);
-    mapUpdate.set(keys[i], `value_${keys[i]}`);
-    mapDelete.set(keys[i], `value_${keys[i]}`);
+    // keys has maxSize entries; cycle through them for every map
+    const key = keys[i % keys.length]!;
+    mapSet.set(key, `value_${key}`);
+    mapUpdate.set(key, `value_${key}`);
+    mapDelete.set(key, `value_${key}`);
   }
 
   benchmarkOperation('hash map set', () => {

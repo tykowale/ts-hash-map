@@ -18,7 +18,7 @@ function shuffle<T>(arr: T[], rand: () => number): T[] {
   const out = arr.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+    [out[i], out[j]] = [out[j]!, out[i]!];
   }
   return out;
 }
@@ -691,7 +691,7 @@ describe('HashMap structural (value-equality) keys', () => {
       if (Array.isArray(v)) return v.map((x) => reorderedClone(x, rand));
       if (v !== null && typeof v === 'object') {
         const out: { [k: string]: Json } = {};
-        for (const k of shuffle(Object.keys(v), rand)) out[k] = reorderedClone(v[k], rand);
+        for (const k of shuffle(Object.keys(v), rand)) out[k] = reorderedClone(v[k]!, rand);
         return out;
       }
       return v;

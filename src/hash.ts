@@ -103,7 +103,7 @@ function getNumberHashCode(value: number): number {
     return NAN_HASH;
   }
   f64[0] = value;
-  return fmix(u32[0] ^ Math.imul(u32[1], 0x9e3779b1));
+  return fmix(u32[0]! ^ Math.imul(u32[1]!, 0x9e3779b1));
 }
 
 function getPrimitiveHashCode(value: unknown): number {
@@ -162,18 +162,18 @@ function hashObjectProps(value: any, tag: number, ctx: Ctx, depth: number): numb
   if (depth === ctx.maxDepth) {
     // shallow: key names only
     for (let i = 0; i < keys.length; i++) {
-      acc = (acc + fmix(getStringHashCode(keys[i]))) | 0;
+      acc = (acc + fmix(getStringHashCode(keys[i]!))) | 0;
     }
     for (let i = 0; i < syms.length; i++) {
       acc = (acc + fmix(getPrimitiveHashCode(syms[i]))) | 0;
     }
   } else {
     for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
+      const key = keys[i]!;
       acc = (acc + pairHash(getStringHashCode(key), hash(value[key], ctx, depth))) | 0;
     }
     for (let i = 0; i < syms.length; i++) {
-      const sym = syms[i];
+      const sym = syms[i]!;
       acc = (acc + pairHash(getPrimitiveHashCode(sym), hash(value[sym], ctx, depth))) | 0;
     }
   }
@@ -216,7 +216,7 @@ function hashBytes(bytes: Uint8Array): number {
   const len = bytes.length;
   let h = combine(TAG_BYTES, len);
   for (let i = 0; i < len; i++) {
-    h = combine(h, bytes[i]);
+    h = combine(h, bytes[i]!);
   }
   return fmix(h);
 }
