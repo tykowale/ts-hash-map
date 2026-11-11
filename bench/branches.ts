@@ -15,7 +15,7 @@
  * so the worktree needs no npm install (unless you pass --dist, which builds both sides).
  * Any other flag (--family, --filter, --preset, --large, --time, --sizes, --dist, --smoke) is passed to
  * bench/run.ts; --threshold, --summary, --accept, --max-regression, --target and
- * --fail-on-regression are passed to compare.ts. --help lists them, and an
+ * --fail-on-regression, --all are passed to compare.ts. --help lists them, and an
  * unknown flag is an error.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -46,6 +46,7 @@ Compare options (passed to bench:compare):
   --target <regex>    summary PASS also needs a matching row to be faster
   --fail-on-regression
                       exit 1 when any row is SLOWER
+  --all               print unchanged rows too
 
 ${CONFIG_USAGE}
 
@@ -82,7 +83,7 @@ for (let i = 0; i < argv.length; i++) {
     a === '--target'
   ) {
     compareArgs.push(a, value(++i, a));
-  } else if (a === '--summary' || a === '--fail-on-regression') {
+  } else if (a === '--summary' || a === '--fail-on-regression' || a === '--all') {
     compareArgs.push(a);
   } else if (a === '--root' || a === '--out') {
     exitWithUsage(USAGE, `${a} is set by bench:branches itself`);
