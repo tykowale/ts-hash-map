@@ -172,37 +172,22 @@ v2 makes `HashMap` behave like the native `Map` wherever value-equality allows, 
 
 ## Benchmarks
 
-The benchmark scripts live in `bench/` and run with `npm run benchmark` and `npm run object-benchmark`.
+The suite in [`bench/`](bench/README.md) is built on [mitata](https://github.com/evanwashere/mitata). It
+measures each operation (get hit/miss, has, set, update, churn, delete, clear, iteration, construction) across
+several key types and map sizes. Every result sits next to a native `Map` baseline from the same process.
+For structural keys the baseline is a `Map` keyed by `fast-json-stable-stringify(key)`, which is what you would
+write without this library. Structural lookups always use equal _clones_, not the inserted references.
 
-Comparison between native and ts-hash-map, 100,000 iterations of doing the same operation 100 times on a single map.
-These benchmarks are for Map<string, string> so an all primitive comparison
+```bash
+npm run bench                                 # everything (a few minutes)
+npm run bench -- --family object-keys         # one scenario family
+npm run bench:smoke                           # quick check that every benchmark runs and verifies
+npm run bench:branches -- --base origin/v2    # compare this checkout against another branch
+npm run bench:memory                          # retained bytes per entry
+```
 
-| Title             | Total Time (ms) | Time per Operation (ms) | Operations per Second |
-| ----------------- | --------------- | ----------------------- | --------------------- |
-| Hash Map Set      | 1056            | 0.0001056000            | 9,469,696             |
-| Hash Map Get      | 408             | 0.0000408000            | 24,509,803            |
-| Hash Map Update   | 1376            | 0.0001376000            | 7,267,441             |
-| Hash Map Delete   | 342             | 0.0000342000            | 29,239,766            |
-| Native Map Set    | 449             | 0.0000449000            | 22,271,714            |
-| Native Map Get    | 10              | 0.0000010000            | 1,000,000,000         |
-| Native Map Update | 332             | 0.0000332000            | 30,120,481            |
-| Native Map Delete | 35              | 0.0000035000            | 285,714,285           |
-
-These benchmarks are for Map<CustomObject, string>. It assumes to store the object in the map
-you want deep equality so we use [fast-json-stable-stringify](https://www.npmjs.com/package/fast-json-stable-stringify) then store
-it in the native map as Map<string, string>. This is done with only 10,000 iterations so total time is not apples
-to apples with the above table.
-
-| Title             | Total Time (ms) | Time per Operation (ms) | Operations per Second |
-| ----------------- | --------------- | ----------------------- | --------------------- |
-| Hash Map Set      | 339             | 0.0003390000            | 2,949,852             |
-| Hash Map Get      | 282             | 0.0002820000            | 3,546,099             |
-| Hash Map Update   | 319             | 0.0003190000            | 3,134,796             |
-| Hash Map Delete   | 268             | 0.0002680000            | 3,731,343             |
-| Native Map Set    | 1510            | 0.0015100000            | 662,251               |
-| Native Map Get    | 1247            | 0.0012470000            | 801,924               |
-| Native Map Update | 1634            | 0.0016340000            | 611,995               |
-| Native Map Delete | 1075            | 0.0010750000            | 930,232               |
+See [bench/README.md](bench/README.md) for the methodology, how to read the output and how to compare runs.
+Results depend on the machine and the Node version, so quote ratios to the baseline, not absolute times.
 
 ## Development
 

@@ -56,8 +56,12 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build && npm run test:package",
-    "benchmark": "tsx bench/hash-map.bench.ts",
-    "object-benchmark": "tsx bench/object.bench.ts",
+    "bench": "tsx bench/run.ts",
+    "bench:smoke": "tsx bench/run.ts --smoke",
+    "bench:json": "tsx bench/run.ts --out bench/results/latest.json",
+    "bench:compare": "tsx bench/compare.ts",
+    "bench:branches": "tsx bench/branches.ts",
+    "bench:memory": "node --expose-gc --import tsx bench/memory.ts",
     "prepublishOnly": "npm run check"
   },
   "devDependencies": {
@@ -65,6 +69,7 @@
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.1.0",
     "fast-json-stable-stringify": "^2.1.0",
+    "mitata": "1.0.34",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "oxlint-tsgolint": "^7.0.2006",
