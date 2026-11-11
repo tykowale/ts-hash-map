@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { HashMap } from './hash-map';
 import { getHashCode } from './hash';
 
@@ -632,7 +633,7 @@ describe('HashMap collisions and resizing', () => {
 
     test('equalsFn is invoked with the stored key and the lookup key', () => {
       const calls: Array<[unknown, unknown]> = [];
-      const equalsFn = jest.fn((a: unknown, b: unknown) => {
+      const equalsFn = vi.fn((a: unknown, b: unknown) => {
         calls.push([a, b]);
         return a === b;
       });
@@ -651,7 +652,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is not called when hashes differ (hash short-circuit)', () => {
-      const equalsFn = jest.fn((a: unknown, b: unknown) => a === b);
+      const equalsFn = vi.fn((a: unknown, b: unknown) => a === b);
       // identity hash on small ints, all in the same bucket via loadFactor/capacity
       const map = new HashMap<number, number>({ hashFn: (k) => k as number, equalsFn, capacity: 1, loadFactor: 100 });
       for (let i = 0; i < 10; i++) map.set(i, i);
@@ -665,7 +666,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is called for every same-hash node until a match', () => {
-      const equalsFn = jest.fn((a: unknown, b: unknown) => a === b);
+      const equalsFn = vi.fn((a: unknown, b: unknown) => a === b);
       const map = new HashMap<number, number>({ hashFn: constantHash, equalsFn });
       for (let i = 0; i < 5; i++) map.set(i, i);
       equalsFn.mockClear();
@@ -674,7 +675,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('equalsFn is never called on an empty bucket', () => {
-      const equalsFn = jest.fn(() => true);
+      const equalsFn = vi.fn(() => true);
       const map = new HashMap<number, number>({ equalsFn });
       map.get(1);
       map.has(2);
@@ -700,7 +701,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('hashFn is called once per operation', () => {
-      const hashFn = jest.fn((v: unknown) => getHashCode(v));
+      const hashFn = vi.fn((v: unknown) => getHashCode(v));
       const map = new HashMap<string, number>({ hashFn });
       map.set('a', 1);
       map.get('a');
@@ -710,7 +711,7 @@ describe('HashMap collisions and resizing', () => {
     });
 
     test('hashFn is not re-invoked during resize (cached hash is used)', () => {
-      const hashFn = jest.fn((v: unknown) => v as number);
+      const hashFn = vi.fn((v: unknown) => v as number);
       const map = new HashMap<number, number>({ hashFn, capacity: 1 });
       for (let i = 0; i < 100; i++) map.set(i, i);
       expect(hashFn).toHaveBeenCalledTimes(100);

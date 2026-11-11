@@ -1,3 +1,4 @@
+import { describe, expect, test, vi } from 'vitest';
 import { HashMap } from './hash-map';
 
 /**
@@ -425,13 +426,13 @@ describe('HashMap Map conformance', () => {
     });
 
     test('forEach on an empty map never calls the callback', () => {
-      const cb = jest.fn();
+      const cb = vi.fn();
       new HashMap().forEach(cb);
       expect(cb).not.toHaveBeenCalled();
     });
 
     test('forEach on a cleared map never calls the callback', () => {
-      const cb = jest.fn();
+      const cb = vi.fn();
       const map = new HashMap<number, number>([[1, 1]]);
       map.clear();
       map.forEach(cb);
@@ -440,7 +441,7 @@ describe('HashMap Map conformance', () => {
 
     test('forEach visits keys with undefined values', () => {
       const map = new HashMap<string, undefined>([['a', undefined]]);
-      const cb = jest.fn();
+      const cb = vi.fn();
       map.forEach(cb);
       expect(cb).toHaveBeenCalledTimes(1);
       expect(cb).toHaveBeenCalledWith(undefined, 'a', map);
@@ -489,7 +490,7 @@ describe('HashMap Map conformance', () => {
     });
 
     test('entries + options', () => {
-      const hashFn = jest.fn(() => 7);
+      const hashFn = vi.fn(() => 7);
       const map = new HashMap<string, number>([['a', 1], ['b', 2]], { hashFn });
       expect(hashFn).toHaveBeenCalled();
       expect(map.size).toBe(2);

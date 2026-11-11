@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { isEqual } from './is-equal';
 
 describe('isEqual', () => {

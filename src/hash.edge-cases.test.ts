@@ -1,3 +1,4 @@
+import { describe, expect, it, test } from 'vitest';
 import { getHashCode } from './hash';
 import { isEqual } from './is-equal';
 

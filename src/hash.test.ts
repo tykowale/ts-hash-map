@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { getHashCode } from './hash';
 
 const isInt32 = (n: number) => Number.isInteger(n) && (n | 0) === n;

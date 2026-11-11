@@ -1,3 +1,4 @@
+import { describe, expect, it, test, vi } from 'vitest';
 import { HashMap } from './hash-map';
 
 /**
@@ -214,7 +215,7 @@ describe('HashMap iteration', () => {
       const m = build(range(5));
       const a = getIter(m, kind);
       const b = getIter(m, kind);
-      expect(a).not.toBe(b);
+      expect(a === b).toBe(false); // not.toBe would drain both iterators while diffing
       a.next();
       a.next();
       expect([...b]).toHaveLength(5);
@@ -400,7 +401,7 @@ describe('HashMap iteration', () => {
     });
 
     it('is not called on an empty map', () => {
-      const fn = jest.fn();
+      const fn = vi.fn();
       new HashMap().forEach(fn);
       expect(fn).not.toHaveBeenCalled();
     });

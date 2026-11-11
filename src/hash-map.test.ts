@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { HashMap } from './hash-map';
 
 // if you are looking for custom hash/equals functions these are atrocious and should not be used
