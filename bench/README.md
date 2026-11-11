@@ -14,7 +14,9 @@ npm run bench -- --out bench/results/head.json  # pick the JSON path yourself
 npm run bench -- --dist                         # benchmark the built dist/index.mjs (npm run build first)
 npm run bench:compare -- base.json head.json    # compare two result files
 npm run bench:branches -- --base origin/v2             # benchmark this checkout against another branch
-npm run bench:memory                            # retained heap per entry (separate processes)
+npm run bench:memory                            # retained heap per entry and per small map
+npm run bench -- --large                        # also the opt-in large tier (1M entries)
+npm run bench:large                             # only the large tier
 npm run bench -- --preset hill                  # the fixed hill-climbing subset (lib/presets.ts)
 npm run bench:branches -- --base HEAD --preset hill --summary  # one accept/reject line
 npm run bench:ratios -- bench/results/latest.json  # library rows, worst HashMap/baseline first
@@ -31,17 +33,21 @@ You can also run one family file directly:
 | Path                         | What it does                                                                                                                                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `run.ts`                     | Runs each family file in its **own Node process** and merges their JSON.                                                                                                           |
-| `scenarios/int-keys.ts`      | Small ints (they hash to themselves), sparse int32s, floats (float hash path).                                                                                                     |
+| `scenarios/int-keys.ts`      | Small ints (they hash to themselves), sparse int32s, floats (float hash path), strided ints (`id*1024`, `id*4+1`, ms timestamps).                                                  |
 | `scenarios/string-keys.ts`   | 8-char strings, UUIDs, 100-char strings. Hashing cost grows with length.                                                                                                           |
-| `scenarios/object-keys.ts`   | Flat 5-field records, Dates, a custom `hashFn`/`equalsFn` pair.                                                                                                                    |
+| `scenarios/object-keys.ts`   | Flat 5-field records, Dates, a custom `hashFn`/`equalsFn` pair, four record shapes in one map, a 16-field record.                                                                  |
 | `scenarios/array-keys.ts`    | `[x, y]` tuples.                                                                                                                                                                   |
 | `scenarios/nested-keys.ts`   | Depth-3 objects with an array inside.                                                                                                                                              |
 | `scenarios/mixed-keys.ts`    | One map holding ints, strings, records, tuples and Dates together.                                                                                                                 |
-| `scenarios/iteration.ts`     | `for..of`, `keys()`/`values()`, `forEach`, `keys().toArray()`, plus iteration after deletes.                                                                                       |
+| `scenarios/polluted.ts`      | int, fresh UUID, record and tuple rows after the library has seen every key shape and a custom `hashFn`/`equalsFn` map in the same process.                                        |
+| `scenarios/small-maps.ts`    | Whole small-map lifecycles (n = 1, 4, 16) and gets spread over 10k live 4-entry maps.                                                                                              |
+| `scenarios/read-write.ts`    | A Zipf upsert counter and a 90/10 get/set mix at a steady size.                                                                                                                    |
+| `scenarios/iteration.ts`     | `for..of`, `keys()`/`values()`, `forEach`, `keys().toArray()`, iteration after deletes, and record/tuple keys.                                                                     |
 | `scenarios/construction.ts`  | `new HashMap(entries)`, clear + refill, a loadFactor sweep, growing from capacity 1, a single resize.                                                                              |
 | `scenarios/adversarial.ts`   | Hash collisions built from this library's own hash function.                                                                                                                       |
 | `scenarios/hash-equals.ts`   | `getHashCode` and `isEqual` on their own, for each key shape.                                                                                                                      |
-| `memory.ts`                  | Retained bytes per entry.                                                                                                                                                          |
+| `scenarios/large.ts`         | Opt-in (`--large`): int, UUID and tuple keys at 1M entries, records at 100k.                                                                                                       |
+| `memory.ts`                  | Retained bytes per entry, and per map for 0-16-entry maps.                                                                                                                         |
 | `compare.ts` / `branches.ts` | Compare results, or compare branches.                                                                                                                                              |
 | `ratios.ts`                  | Ranks library rows of a result file by HashMap/baseline ratio, worst first.                                                                                                        |
 | `profile/`                   | CPU profiler: HashMap-only workloads (`workloads.ts`), the profiled process (`driver.ts`), the profile reader (`cpuprofile.ts`), the CLI (`run.ts`).                               |
@@ -120,15 +126,61 @@ scenario label and size. Two runs measure exactly the same keys in exactly the s
 
 ### Workload matrix
 
-| Dimension     | Values                                                                                                                                                                                                                                                     |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sizes         | Primitive keys 10 / 1k / 100k. Structural keys 10 / 1k / 10k. Adversarial 64 / 512 / 4096. Smoke uses 10 / 100.                                                                                                                                            |
-| Operations    | get at 100% hit (random order and insertion order), 0% hit, 50% hit; has at 50% hit; set n keys into a new map, with the default capacity and presized; update existing keys; steady-state churn (delete one, insert one, size stays n); delete all; clear |
-| Key types     | small / sparse ints, floats, 8 and 100 char strings, UUIDs, 5-field records, `[x, y]` tuples, depth-3 nested objects, Dates, mixed                                                                                                                         |
-| Hash/equality | the above plus bigint, 32-prop records, 100-element arrays, a Set of 10 objects, a cyclic object, records with properties in reordered order                                                                                                               |
+| Dimension     | Values                                                                                                                                                                                                                                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sizes         | Primitive keys 10 / 1k / 100k. Structural keys 10 / 1k / 10k. Adversarial 64 / 512 / 4096. Small maps 1 / 4 / 16. Polluted 10 / 1k. Read/write and structural iteration 1k. Large tier 1M (records 100k). Smoke uses 10 / 100.                                                                                                      |
+| Operations    | get at 100% hit (random order and insertion order), 0% hit, 50% hit; has at 50% hit; set n keys into a new map, with the default capacity and presized; update existing keys; steady-state churn (delete one, insert one, size stays n); delete all; clear; a whole small-map lifecycle; a Zipf upsert counter; a 90/10 get/set mix |
+| Key types     | small / sparse / strided ints, ms timestamps, floats, 8 and 100 char strings, UUIDs, 5-field records, four record shapes in one map, 16-field records, `[x, y]` tuples, depth-3 nested objects, Dates, mixed                                                                                                                        |
+| Hash/equality | the above plus bigint, 32-prop records, 100-element arrays, a Set of 10 objects, a cyclic object, records with properties in reordered order                                                                                                                                                                                        |
 
 `set-fresh` vs `set-presized` shows what resizing costs. The presized map gets
 `capacity: ceil(n / loadFactor)`, so it never resizes.
+
+**Feedback pollution (`polluted`).** Every other family runs one key type per process, so
+`getHashCode`, `isEqual` and the `HashMap` methods only ever see one shape and V8 specialises them
+for it. That flatters `typeof` and prototype fast paths. `polluted.ts` first builds HashMaps over
+every key shape the suite generates (ints, floats, strings, UUIDs, records of several shapes,
+tuples, nested objects, Dates, mixed, bigints) plus one map with a custom `hashFn`/`equalsFn`, and
+runs set, get, has, delete and iteration on each, enough rounds for V8 to optimise the library
+with that feedback. The warmup checks its own answers. The measured groups then use the same
+labels, seeds and baselines as the single-type families (`polluted/int get-hit n=1000` measures the
+same keys as `int-keys/int get-hit n=1000`), so the two rows side by side show what pollution
+costs. A change that wins only on the monomorphic row is not a win.
+
+**Small maps (`small-maps`).** `<key> lifecycle n=<n>` times a whole short-lived map: `new HashMap()`,
+n sets, n hits, ceil(n/2) misses, then the map is dropped; op = one lifecycle, and the result
+check counts the hits and misses. This is where constructor cost (capacity normalisation, the
+initial table) shows; n=16 includes the default table's one resize at 13 entries.
+`<key> get-hit 10000 maps x 4` keeps 10k 4-entry maps alive and spreads gets at random across
+them. `bench:memory` has the matching bytes-per-map table.
+
+**Strided ints.** Int32 keys hash to themselves and the bucket is `hash & (capacity - 1)`, so
+the dense `int` keys (0..n-1) map one to one onto buckets. `strided-int` (`id * 1024`) has ten
+zero low bits and lands in a handful of buckets; `tagged-int` (`id * 4 + 1`) leaves three
+quarters of the buckets empty; `timestamp-ms` (above 2^31) takes the float hash path. These rows
+decide whether the hash needs a spread step.
+
+**Read/write mixes (`read-write`).** `upsert zipf` is the counter pattern
+`m.set(k, (m.get(k) ?? 0) + 1)` over a seeded Zipf (s = 1) stream, a double lookup of the same key;
+`get90-set10` is 922 gets and 102 sets on existing keys per 1024-op call. Both start from a map
+holding every key, so the size stays n and every get hits. Tuple lookups use equal clones; the
+stringify baseline computes the key string once per upsert.
+
+**Shape variety.** `object-keys/record-shapes` puts four record shapes (with optional fields) into
+one map and `object-keys/record-16` uses one 16-field shape, so a record fast path cannot rely on
+one hidden class or on five fields. They run after the single-shape groups, so they don't change
+those groups' feedback.
+
+**Structural iteration.** `iteration/user-record …` and `iteration/tuple …` walk n=1k maps with
+object keys (`for..of` entries, `keys()`, `values()`) against a native Map holding the same key
+objects. They run after the int groups.
+
+**Large tier (`large`, opt-in).** int, fresh UUID and tuple keys at 1M entries (get-hit,
+set-fresh, churn; UUID churn uses the inserted instances, because fresh copies only apply to
+lookups and set-fresh) and user records at 100k. It needs a few minutes and a few GB of heap, so
+`npm run bench` skips it; `--large` adds it, `npm run bench:large` runs it alone, and smoke mode
+always includes it at smoke sizes so CI checks it. `bench:memory -- --large` adds 1M entries to
+the memory table. Use it in the guard tier, not for every screen.
 
 ### Adversarial
 
@@ -153,6 +205,11 @@ It measures `heapUsed` after two `gc()` calls before and after the build. Keys a
 the measured window, so whatever the map keeps alive counts, keys included. A second column
 measures again after half the entries are deleted. The table never shrinks, so bytes per _live_
 entry go up.
+
+The small-maps table holds 10k live maps of 0, 1, 2, 4, 8, 12, 13 and 16 int entries per process
+(int keys and values cost no heap) and reports retained bytes per map, for `Map` and `HashMap`.
+The empty row is the constructor's fixed cost, and 12 vs 13 shows the default table's first
+resize. `--small-maps off` skips it and `--small-maps only` prints only it.
 
 ## Reading the output
 
@@ -237,8 +294,11 @@ verdict line:
 
 ### Hill climbing
 
-`--preset hill` (`lib/presets.ts`) is a fixed subset of about 25 groups across key types, with
-`--time 150`, sized for a 1-2 minute screen. It sets the families, the filter and the time (an
+`--preset hill` (`lib/presets.ts`) is a fixed subset of 38 groups across key types, with
+`--time 150`: about 35 s on an Apple M5, so a 3-run `bench:branches` confirm takes about 4 minutes. Besides the core get/set/churn rows it holds
+`int clear`, `date` and `string-100` gets, small-map lifecycles at n = 4 and 16 (int, user-record),
+the polluted int and user-record gets, the upsert and 90/10 rows (int, tuple) and strided-int
+get-hit at n=100k. It sets the families, the filter and the time (an
 explicit `--time` still wins) and cannot be combined with `--family`/`--filter`. Only compare a
 preset run with another run of the same preset: JIT feedback carries over between groups inside
 a family process, so a subset is not comparable with a full run. To grow the subset, append a
@@ -307,7 +367,7 @@ HashMap itself). It is a quick way to pick hill-climbing targets.
 
 ## CI
 
-CI runs `npm run bench:smoke` and `npm run bench:profile:smoke` on Node 22 and 24 and uploads the
+CI runs `npm run bench:smoke` (which includes the opt-in large tier at smoke sizes) and `npm run bench:profile:smoke` on Node 22 and 24 and uploads the
 smoke JSON as an artifact for reference. The profile smoke verifies every workload x op at tiny
 sizes in-process, then profiles two short runs end to end. The job fails when a case throws, fails its result check, or looks optimized out. It
 **never** fails because of timings. GitHub-hosted runners are shared VMs with no guaranteed CPU,
