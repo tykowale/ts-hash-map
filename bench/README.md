@@ -282,15 +282,27 @@ machine has. If an A/A run flags cases, raise `--threshold` above that level bef
 A/B result.
 
 **`--summary`** (on `bench:compare` and `bench:branches`) adds one objective for hill climbing:
-the geometric mean over every library row with a baseline of the per-row change in
+the geometric mean over every library row with a native baseline of the per-row change in
 HashMap/baseline ratio (head vs base), with a bootstrap 95% CI, the worst single row, and a
-verdict line:
+verdict line. Groups whose baseline is HashMap itself (adversarial) are left out, since a library
+change moves both sides of their ratio. A group with several library rows contributes each of
+them. Replicate r of every row resamples the same runs, so a run that was fast or slow across the
+board widens the geomean CI instead of averaging out.
 
-- `FAIL`: the geomean CI lies entirely above 0, or some row is `SLOWER` (runs agree) by more than
-  `--max-regression` (default 3%).
-- `PASS`: not `FAIL`, and the geomean improved by at least `--accept` (default 2%) with its CI
-  entirely below 0.
-- `INCONCLUSIVE`: otherwise. Re-run with more `--runs`; don't accept on it.
+- `FAIL`: the geomean CI lies entirely above 0; or a row's CI lies wholly above
+  `+--max-regression` (default 3%, independent of `--threshold`) and every head run's ratio is
+  above every base run's; or a `polluted/` row's change is above `+--max-regression`, whatever its
+  CI.
+- `INCONCLUSIVE`: not `FAIL`, but a row's baseline drifted (re-run), the geomean gain is below
+  `--accept` (default 2%) or its CI includes 0, or `--target <regex>` matched no row that is
+  `faster`. Re-run with more `--runs`; don't accept on it.
+- `PASS`: otherwise. Without `--target` the target-row check is not done, and the `PASS` line says
+  so.
+
+With 3 runs per side, "every head run above every base run" holds by chance for about 1 row in
+20, so over the hill preset's ~50 rows an A/A run can occasionally put a row past the
+`--max-regression` CI rule. Confirm a row-level `FAIL` with `--runs 5` before discarding a change
+for it.
 
 ### Hill climbing
 
@@ -308,11 +320,15 @@ a family process, so a subset is not comparable with a full run. To grow the sub
 npm run bench:branches -- --base HEAD --runs 3 --preset hill         # A/A once: calibrate noise
 npm run bench:profile -- --workload int --n 1000 --op get-hit --no-inline  # 1. find the hot frame
 npm run bench -- --preset hill --out bench/results/try.json          # 2. quick screen
-npm run bench:branches -- --base HEAD --runs 3 --threshold 2 --preset hill --summary  # 3. confirm
+npm run bench:branches -- --base HEAD --runs 3 --threshold 2 --preset hill --summary \
+  --target 'object-keys/user-record get-hit n=1000'                  # 3. confirm
 ```
 
-Accept a change on `PASS` (plus the target row `faster` with runs agreeing, and `npm test`
-passing), and re-profile the workload to check the frame shrank.
+Accept a change on `PASS` with `--target` naming the row it aims at (and `npm test` passing),
+and re-profile the workload to check the frame shrank. `bench:branches` passes `--threshold`,
+`--summary`, `--accept`, `--max-regression`, `--target` and `--fail-on-regression` to
+`bench:compare`. A `--preset` run fails when one of the preset's patterns matches no group (a
+renamed group would otherwise drop out silently); with `--smoke` or `--sizes` it only warns.
 
 To do it by hand, run `npm run bench -- --root ../other-checkout --out base.json` and
 `npm run bench -- --out head.json`, then `npm run bench:compare -- base.json head.json`. Pass
@@ -366,7 +382,8 @@ plus iteration and construction ops on `int` and `user-record`; `--workloads`, `
 
 `bench:ratios` ranks the library rows of a result file by HashMap/baseline ratio, worst first,
 as a Markdown table (`--filter`, `--top`; `--all` includes adversarial groups whose baseline is
-HashMap itself). It is a quick way to pick hill-climbing targets.
+HashMap itself). Given several files, it divides each row by its own file's baseline and shows
+the median over files. It is a quick way to pick hill-climbing targets.
 
 ## CI
 

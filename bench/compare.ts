@@ -32,8 +32,10 @@
  *   ~                otherwise (no detectable change)
  *
  * --summary adds one objective for hill climbing: the geometric mean of the per-row change in
- * HashMap/baseline ratio over every library row with a baseline, with a bootstrap CI, the worst
- * single row, and a PASS / FAIL / INCONCLUSIVE line (see USAGE for the rule).
+ * HashMap/baseline ratio over every library row with a native baseline, with a bootstrap CI, the
+ * worst single row, and a PASS / FAIL / INCONCLUSIVE line (see USAGE for the rule). Replicate r of
+ * every row resamples the same runs (lib/stats.ts, runDraws), so a run that was fast or slow
+ * across the board widens the geomean CI instead of averaging out.
  *
  * Calibrate the threshold with an A/A run (base = head): any slower/faster verdict there is noise.
  */
@@ -51,7 +53,9 @@ import {
   medianCI,
   medianReplicates,
   quantile,
+  RESAMPLES,
   rme,
+  runDraws,
   type RunReplicates,
   sidePoint,
   sideReplicates,
@@ -66,6 +70,7 @@ interface Args {
   summary: boolean;
   accept: number;
   maxRegression: number;
+  target: RegExp | undefined;
 }
 
 const USAGE = `usage: npm run bench:compare -- base.json head.json
@@ -82,14 +87,24 @@ Options:
                           95% CI, the worst row, and a verdict line
   --accept <pct>          summary PASS needs a geomean gain of at least this much, with the CI
                           entirely below 0 (default 2)
-  --max-regression <pct>  summary FAIL when a row is SLOWER by more than this (default 3)
+  --max-regression <pct>  summary FAIL when a row's CI lies wholly above +pct with the runs
+                          agreeing, or a polluted/ row's change is above +pct (default 3)
+  --target <regex>        summary PASS also needs a row whose id matches to be faster with the
+                          runs agreeing (the row the change is aimed at)
   -h, --help              print this help and exit
 
-Summary verdict:
-  FAIL          the geomean CI lies entirely above 0, or some row is SLOWER (runs agree) by more
-                than --max-regression
-  PASS          not FAIL, and the geomean improved by at least --accept with its CI below 0
-  INCONCLUSIVE  otherwise`;
+Summary verdict (rows: library rows judged against a native baseline in the same group; a group
+with several HashMap rows contributes each of them to the geomean):
+  FAIL          the geomean CI lies entirely above 0; or a row's CI lies wholly above
+                +--max-regression and every head run is slower than every base run; or a
+                polluted/ row's change is above +--max-regression, whatever its CI
+  INCONCLUSIVE  not FAIL, but a row's baseline drifted (re-run), or the geomean gain is below
+                --accept or its CI includes 0, or --target matched no faster row
+  PASS          otherwise. Without --target the target-row check is not done; the PASS line says so
+
+With 3 runs per side, "every head run slower than every base run" holds by chance for 1 row in
+20; over the ~50 hill rows an A/A run can still put a row past the CI rule now and then, so
+confirm a row-level FAIL with --runs 5 before discarding a change for it.`;
 
 function parseArgs(argv: string[]): Args {
   if (isHelp(argv)) {
@@ -104,6 +119,7 @@ function parseArgs(argv: string[]): Args {
     summary: false,
     accept: 2,
     maxRegression: 3,
+    target: undefined,
   };
   const positional: string[] = [];
   const value = (i: number, flag: string): string => {
@@ -132,6 +148,13 @@ function parseArgs(argv: string[]): Args {
       args.accept = pct(++i, a);
     } else if (a === '--max-regression') {
       args.maxRegression = pct(++i, a);
+    } else if (a === '--target') {
+      const v = value(++i, a);
+      try {
+        args.target = new RegExp(v);
+      } catch (err) {
+        exitWithUsage(USAGE, `--target: ${(err as Error).message}`);
+      }
     } else if (a === '--all') {
       args.all = true;
     } else if (a === '--fail-on-regression') {
@@ -284,6 +307,18 @@ function runsAgree(bValues: number[], hValues: number[], slower: boolean): boole
     : Math.max(...hValues) < Math.min(...bValues);
 }
 
+// Which runs each bootstrap replicate draws, once per side and shared by every row (see runDraws).
+const drawsCache = new Map<Side['name'], { indices: Uint32Array; runs: number }>();
+function drawsOf(side: Side): { indices: Uint32Array; runs: number } {
+  let d = drawsCache.get(side.name);
+  if (!d) {
+    const runs = side.meta.length;
+    d = { indices: runDraws(runs, rngFor(`runs:${side.name}`)), runs };
+    drawsCache.set(side.name, d);
+  }
+  return d;
+}
+
 // Bootstrap medians per (side, run, case), cached because a baseline serves every row of a group.
 const replicateCache = new Map<string, Float64Array>();
 function replicatesOf(side: Side, run: number, m: Merged): Float64Array {
@@ -310,6 +345,7 @@ function sideRuns(
       continue;
     }
     reps.push({
+      run,
       row: replicatesOf(side, run, m),
       ...(baseline ? { baseline: replicatesOf(side, run, baseline) } : {}),
     });
@@ -336,8 +372,8 @@ function change(
   const rng = rngFor(`change:${h.rec.id}:${bBase ? 'ratio' : 'raw'}`);
   return changeInterval(
     hs.point / bs.point,
-    sideReplicates(bs.reps, rng),
-    sideReplicates(hs.reps, rng),
+    sideReplicates(bs.reps, rng, RESAMPLES, drawsOf(base)),
+    sideReplicates(hs.reps, rng, RESAMPLES, drawsOf(head)),
   );
 }
 
@@ -353,6 +389,8 @@ interface SummaryRow {
   replicates: Float64Array;
   ci: Interval;
   verdict: string;
+  /** Every head run's ratio above every base run's (always true with one run a side). */
+  slowerAgree: boolean;
 }
 
 const movedCache = new Map<string, boolean>();
@@ -433,8 +471,17 @@ for (const id of ids) {
     verdict = '~';
     same++;
   }
-  if (byRatio && !native) {
-    summaryRows.push({ id, ratio: ci.ratio, replicates: judged.replicates, ci, verdict });
+  // Only rows measured against native code: a HashMap baseline (adversarial) runs library code
+  // too, so a change to the library moves both sides of its ratio and cancels out.
+  if (byRatio && !native && !LIBRARY_ROW.test(h.rec.baselineImpl!)) {
+    summaryRows.push({
+      id,
+      ratio: ci.ratio,
+      replicates: judged.replicates,
+      ci,
+      verdict,
+      slowerAgree: runsAgree(b.ratios, h.ratios, true),
+    });
   }
   if (!args.all && verdict === '~') {
     continue;
@@ -473,33 +520,58 @@ function printSummary(): void {
   const worst = summaryRows.reduce((w, r) => (r.ratio > w.ratio ? r : w));
   const best = summaryRows.reduce((w, r) => (r.ratio < w.ratio ? r : w));
   const count = (v: string): number => summaryRows.filter((r) => r.verdict === v).length;
-  const bigRegressions = summaryRows.filter(
-    (r) => r.verdict === 'SLOWER' && r.ratio > 1 + args.maxRegression / 100,
+  const limit = 1 + args.maxRegression / 100;
+  // Independent of --threshold: the whole CI above +maxRegression, and the runs agree.
+  const bigRegressions = summaryRows.filter((r) => r.ci.low > limit && r.slowerAgree);
+  // Plan rule: no polluted row regresses by more than maxRegression, on the point estimate alone.
+  const pollutedRegressions = summaryRows.filter(
+    (r) => r.id.startsWith('polluted/') && r.ratio > limit && !bigRegressions.includes(r),
   );
+  const drifted = summaryRows.filter((r) => r.verdict === 'drift');
+  const targets = args.target ? summaryRows.filter((r) => args.target!.test(r.id)) : [];
+  const targetHits = targets.filter((r) => r.verdict === 'faster');
 
   const reasons: string[] = [];
   let verdict: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
-  if (geo.low > 1 || bigRegressions.length > 0) {
+  if (geo.low > 1 || bigRegressions.length > 0 || pollutedRegressions.length > 0) {
     verdict = 'FAIL';
     if (geo.low > 1) {
       reasons.push('geomean CI entirely above 0');
     }
     if (bigRegressions.length > 0) {
-      reasons.push(`${bigRegressions.length} row(s) SLOWER by > ${args.maxRegression}%`);
+      reasons.push(`${bigRegressions.length} row(s) with CI above +${args.maxRegression}%`);
     }
-  } else if (geo.high < 1 && geo.ratio <= 1 - args.accept / 100) {
-    verdict = 'PASS';
-    reasons.push(
-      `geomean ${formatChange(geo.ratio)} <= -${args.accept}% with CI below 0, ` +
-        `no row SLOWER by > ${args.maxRegression}%`,
-    );
+    if (pollutedRegressions.length > 0) {
+      reasons.push(`${pollutedRegressions.length} polluted row(s) above +${args.maxRegression}%`);
+    }
   } else {
-    verdict = 'INCONCLUSIVE';
-    reasons.push(
-      geo.high >= 1
-        ? 'geomean CI includes 0'
-        : `geomean gain smaller than ${args.accept}% (--accept)`,
-    );
+    if (drifted.length > 0) {
+      reasons.push(`${drifted.length} row(s) with a drifted baseline: re-run`);
+    }
+    if (geo.high >= 1) {
+      reasons.push('geomean CI includes 0');
+    } else if (geo.ratio > 1 - args.accept / 100) {
+      reasons.push(`geomean gain smaller than ${args.accept}% (--accept)`);
+    }
+    if (args.target && targetHits.length === 0) {
+      reasons.push(
+        targets.length === 0
+          ? `--target ${args.target.source} matched no summary row`
+          : `no --target row faster with the runs agreeing`,
+      );
+    }
+    if (reasons.length > 0) {
+      verdict = 'INCONCLUSIVE';
+    } else {
+      verdict = 'PASS';
+      reasons.push(
+        `geomean ${formatChange(geo.ratio)} <= -${args.accept}% with CI below 0, ` +
+          `no row above +${args.maxRegression}%` +
+          (args.target
+            ? `, target faster: ${targetHits.map((r) => r.id).join(', ')}`
+            : '; target row not checked (pass --target)'),
+      );
+    }
   }
 
   console.log(
@@ -512,8 +584,18 @@ function printSummary(): void {
   console.log(
     `  best     ${formatChange(best.ratio).padStart(7)} ${range(best.ci)}  ${best.verdict}  ${best.id}`,
   );
-  for (const r of bigRegressions) {
-    console.log(`  SLOWER   ${formatChange(r.ratio).padStart(7)} ${range(r.ci)}  ${r.id}`);
+  for (const r of [...bigRegressions, ...pollutedRegressions]) {
+    console.log(
+      `  SLOWER   ${formatChange(r.ratio).padStart(7)} ${range(r.ci)}  ${r.verdict}  ${r.id}`,
+    );
+  }
+  for (const r of drifted) {
+    console.log(`  drift    ${formatChange(r.ratio).padStart(7)} ${range(r.ci)}  ${r.id}`);
+  }
+  for (const r of targets) {
+    console.log(
+      `  target   ${formatChange(r.ratio).padStart(7)} ${range(r.ci)}  ${r.verdict}  ${r.id}`,
+    );
   }
   console.log(
     `  rows     ${count('SLOWER')} slower, ${count('faster')} faster, ${count('overlap')} overlap, ` +

@@ -88,11 +88,28 @@ export function medianReplicates(
 
 /**
  * One run of a case on one side of a comparison: bootstrap medians of the row itself and, when
- * the row is judged against an in-process baseline, of that baseline from the same run.
+ * the row is judged against an in-process baseline, of that baseline from the same run. `run` is
+ * the run's index on its side (its result file), which `runDraws` refers to.
  */
 export interface RunReplicates {
+  run: number;
   row: Float64Array;
   baseline?: Float64Array;
+}
+
+/**
+ * The runs each bootstrap replicate draws, with replacement: `runs` file indices per replicate,
+ * flattened. Draw them once per side and pass them to every row's `sideReplicates`, so replicate
+ * r of every row resamples the same runs. Run-level effects (one process ran hot) are shared by
+ * every row of that run, so drawing runs per row would treat them as independent and make the
+ * geomean CI too narrow.
+ */
+export function runDraws(runs: number, rng: () => number, resamples = RESAMPLES): Uint32Array {
+  const out = new Uint32Array(resamples * runs);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = runs === 1 ? 0 : Math.floor(rng() * runs);
+  }
+  return out;
 }
 
 /**
@@ -104,18 +121,26 @@ export interface RunReplicates {
  * the row and one of the baseline, both from that run. Keeping the row and its baseline in the same
  * run preserves the in-process pairing that cancels machine drift, and resampling the baseline too
  * puts its own noise in the interval.
+ *
+ * `draws` (from `runDraws`, over `sideRuns` runs) fixes which runs each replicate draws, shared
+ * across rows. A drawn run that this row lacks (it failed in that run) is replaced by one of the
+ * row's own runs, picked with `rng`. Without `draws`, runs are drawn per row with `rng`.
  */
 export function sideReplicates(
   runs: RunReplicates[],
   rng: () => number,
   resamples = RESAMPLES,
+  draws?: { indices: Uint32Array; runs: number },
 ): Float64Array {
   const out = new Float64Array(resamples);
-  const k = runs.length;
+  const byRun = new Map(runs.map((r) => [r.run, r]));
+  const k = draws ? draws.runs : runs.length;
   for (let r = 0; r < resamples; r++) {
     let logSum = 0;
     for (let i = 0; i < k; i++) {
-      const run = runs[k === 1 ? 0 : Math.floor(rng() * k)]!;
+      const run =
+        (draws && byRun.get(draws.indices[r * k + i]!)) ??
+        runs[runs.length === 1 ? 0 : Math.floor(rng() * runs.length)]!;
       const row = run.row[Math.floor(rng() * run.row.length)]!;
       const base = run.baseline ? run.baseline[Math.floor(rng() * run.baseline.length)]! : 1;
       logSum += Math.log(row / base);
@@ -159,8 +184,9 @@ export function changeInterval(
 
 /**
  * Geometric mean of several rows' changes with a percentile 95% CI: replicate r is the geometric
- * mean of every row's replicate r. Rows are resampled independently, so this treats them as
- * independent measurements.
+ * mean of every row's replicate r. Pass rows whose replicates share their run draws (`runDraws`),
+ * so replicate r resamples the same processes for every row and run-level effects stay correlated
+ * across rows, as they are in the data.
  */
 export function geomeanInterval(
   rows: Array<{ ratio: number; replicates: Float64Array }>,
