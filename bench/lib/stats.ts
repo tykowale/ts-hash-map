@@ -2,7 +2,6 @@
  * Statistics over mitata's raw samples. mitata reports percentiles but no confidence interval or
  * margin of error, so we compute them here. All inputs are sorted ascending.
  */
-import { mulberry32 } from './keys.ts';
 
 /** Linear-interpolated quantile of a sorted array. */
 export function quantile(sorted: ArrayLike<number>, p: number): number {
@@ -70,27 +69,134 @@ function resampledMedian(sorted: number[], counts: Uint32Array, rng: () => numbe
   return sorted[n - 1]!;
 }
 
-/**
- * Bootstrap 95% CI (percentile method) for median(head) / median(base). Deterministic: seeded.
- */
-export function bootstrapRatioCI(
-  base: number[],
-  head: number[],
-  resamples = 2000,
-): { ratio: number; low: number; high: number } {
-  const rng = mulberry32(0xbe7c4);
-  const cb = new Uint32Array(base.length);
-  const ch = new Uint32Array(head.length);
-  const ratios = new Float64Array(resamples);
+/** Bootstrap resamples per CI. Seeded, so the same inputs always give the same interval. */
+export const RESAMPLES = 2000;
+
+/** `resamples` bootstrap medians of one sorted sample. */
+export function medianReplicates(
+  sorted: number[],
+  rng: () => number,
+  resamples = RESAMPLES,
+): Float64Array {
+  const counts = new Uint32Array(sorted.length);
+  const out = new Float64Array(resamples);
   for (let r = 0; r < resamples; r++) {
-    ratios[r] = resampledMedian(head, ch, rng) / resampledMedian(base, cb, rng);
+    out[r] = resampledMedian(sorted, counts, rng);
   }
-  ratios.sort();
+  return out;
+}
+
+/**
+ * One run of a case on one side of a comparison: bootstrap medians of the row itself and, when
+ * the row is judged against an in-process baseline, of that baseline from the same run.
+ */
+export interface RunReplicates {
+  row: Float64Array;
+  baseline?: Float64Array;
+}
+
+/**
+ * Two-level bootstrap of one side's statistic: the geometric mean over runs of
+ * median(row) / median(baseline), or of median(row) alone when there is no baseline.
+ *
+ * Each replicate first draws runs with replacement (so variation between processes is in the
+ * interval, not just the noise within one), then for each drawn run takes one bootstrap median of
+ * the row and one of the baseline, both from that run. Keeping the row and its baseline in the same
+ * run preserves the in-process pairing that cancels machine drift, and resampling the baseline too
+ * puts its own noise in the interval.
+ */
+export function sideReplicates(
+  runs: RunReplicates[],
+  rng: () => number,
+  resamples = RESAMPLES,
+): Float64Array {
+  const out = new Float64Array(resamples);
+  const k = runs.length;
+  for (let r = 0; r < resamples; r++) {
+    let logSum = 0;
+    for (let i = 0; i < k; i++) {
+      const run = runs[k === 1 ? 0 : Math.floor(rng() * k)]!;
+      const row = run.row[Math.floor(rng() * run.row.length)]!;
+      const base = run.baseline ? run.baseline[Math.floor(rng() * run.baseline.length)]! : 1;
+      logSum += Math.log(row / base);
+    }
+    out[r] = Math.exp(logSum / k);
+  }
+  return out;
+}
+
+/** Point value of the statistic `sideReplicates` resamples, from each run's actual medians. */
+export function sidePoint(runs: Array<{ row: number; baseline?: number }>): number {
+  let logSum = 0;
+  for (const run of runs) {
+    logSum += Math.log(run.row / (run.baseline ?? 1));
+  }
+  return Math.exp(logSum / runs.length);
+}
+
+export interface Interval {
+  ratio: number;
+  low: number;
+  high: number;
+}
+
+/** Percentile 95% CI of head/base from per-side replicates (same length). */
+export function changeInterval(
+  point: number,
+  base: Float64Array,
+  head: Float64Array,
+): { ci: Interval; replicates: Float64Array } {
+  const replicates = new Float64Array(base.length);
+  for (let r = 0; r < base.length; r++) {
+    replicates[r] = head[r]! / base[r]!;
+  }
+  const sorted = replicates.slice().sort();
   return {
-    ratio: quantile(head, 0.5) / quantile(base, 0.5),
-    low: quantile(ratios, 0.025),
-    high: quantile(ratios, 0.975),
+    ci: { ratio: point, low: quantile(sorted, 0.025), high: quantile(sorted, 0.975) },
+    replicates,
   };
+}
+
+/**
+ * Geometric mean of several rows' changes with a percentile 95% CI: replicate r is the geometric
+ * mean of every row's replicate r. Rows are resampled independently, so this treats them as
+ * independent measurements.
+ */
+export function geomeanInterval(
+  rows: Array<{ ratio: number; replicates: Float64Array }>,
+): Interval {
+  const n = rows.length;
+  if (n === 0) {
+    return { ratio: Number.NaN, low: Number.NaN, high: Number.NaN };
+  }
+  const resamples = rows[0]!.replicates.length;
+  const reps = new Float64Array(resamples);
+  for (let r = 0; r < resamples; r++) {
+    let logSum = 0;
+    for (const row of rows) {
+      logSum += Math.log(row.replicates[r]!);
+    }
+    reps[r] = Math.exp(logSum / n);
+  }
+  reps.sort();
+  let logSum = 0;
+  for (const row of rows) {
+    logSum += Math.log(row.ratio);
+  }
+  return {
+    ratio: Math.exp(logSum / n),
+    low: quantile(reps, 0.025),
+    high: quantile(reps, 0.975),
+  };
+}
+
+/** A change ratio as a signed percentage: 0.97 -> "-3.0%". */
+export function formatChange(ratio: number): string {
+  if (!Number.isFinite(ratio)) {
+    return '-';
+  }
+  const pct = (ratio - 1) * 100;
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
 }
 
 export function formatNs(ns: number): string {
