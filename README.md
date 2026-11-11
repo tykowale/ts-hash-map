@@ -125,8 +125,10 @@ v2 makes `HashMap` behave like the native `Map` wherever value-equality allows, 
 - Iteration is **live**, with native `Map` semantics: entries added during iteration are visited, entries deleted
   before being reached are skipped, and a resize mid-iteration no longer skips or repeats entries.
 - `clear()` ends any in-progress iteration, and an iterator created before `clear()` yields nothing afterwards.
-- The internal `HashMapKeysIterable` / `HashMapValuesIterable` modules were removed; `keys()` and `values()`
-  still return `IterableIterator`s.
+- The internal `HashMapKeysIterable` / `HashMapValuesIterable` modules were removed. `keys()`, `values()`,
+  `entries()` and `[Symbol.iterator]()` are now typed as `MapIterator`, like `Map`, and inherit from the built-in
+  `Iterator`, so iterator helpers such as `map`, `filter`, `take` and `toArray` work on them. The typings need
+  TypeScript 5.6 or newer.
 
 #### Keys
 
@@ -210,11 +212,12 @@ The toolchain is TypeScript 7, [vitest](https://vitest.dev), [oxlint](https://ox
 
 ```bash
 npm install
-npm run check        # typecheck, lint, format check, tests and build
+npm run check        # typecheck, lint, format check, tests, build and package checks
 npm test             # run the tests once (npm run test:watch to watch)
 npm run coverage     # tests with v8 coverage
 npm run typecheck    # tsc -b
 npm run lint         # oxlint (npm run lint:fix to apply fixes)
 npm run format       # oxfmt (npm run format:check to verify only)
 npm run build        # bundle to dist/ with tsdown, then run publint and attw
+npm run test:package # typecheck and smoke test the built dist/ as a consumer would
 ```
