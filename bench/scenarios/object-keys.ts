@@ -6,11 +6,24 @@
  *
  * The baseline is what users would write without this library: a native Map keyed by
  * fast-json-stable-stringify(key), with the stringify call inside the timed region on every op.
+ *
+ * Shape variety comes last, so it cannot change the feedback the single-shape groups above see:
+ * `record-shapes` mixes four record shapes with optional fields in one map, and `record-16` is a
+ * single 16-field shape. A fast path that only pays off for one hidden class, or for five fields,
+ * shows up here.
  */
 import stringify from 'fast-json-stable-stringify';
 import { STRUCTURAL_SIZES, sizes } from '../lib/config.ts';
 import { runFamily } from '../lib/harness.ts';
-import { dates, users, type UserKey } from '../lib/keys.ts';
+import {
+  dates,
+  shapedRecords,
+  users,
+  wideRecords,
+  type ShapedRecord,
+  type UserKey,
+  type WideRecord,
+} from '../lib/keys.ts';
 import { keySuite, type Impl } from '../lib/scenarios.ts';
 
 const userImpls: Impl<UserKey>[] = [
@@ -82,6 +95,34 @@ keySuite({
   generate: dates,
   impls: dateImpls,
   ops: ['get-hit', 'set-fresh'],
+});
+
+const shapeImpls = <K>(): Impl<K>[] => [
+  { kind: 'map-fn', name: 'Map + stable-stringify', keyFn: stringify, baseline: true },
+  { kind: 'hash', name: 'HashMap (equal clone)', lookup: 'clone' },
+  {
+    kind: 'map',
+    name: 'Map (precomputed stringify)',
+    derive: stringify,
+    only: ['get-hit'],
+    note: 'floor: key string built outside the timed region',
+  },
+];
+
+keySuite<ShapedRecord>({
+  label: 'record-shapes',
+  sizes: sizes(STRUCTURAL_SIZES),
+  generate: shapedRecords,
+  impls: shapeImpls(),
+  ops: ['get-hit', 'get-miss', 'set-fresh', 'churn'],
+});
+
+keySuite<WideRecord>({
+  label: 'record-16',
+  sizes: sizes(STRUCTURAL_SIZES),
+  generate: wideRecords,
+  impls: shapeImpls(),
+  ops: ['get-hit', 'get-miss', 'set-fresh'],
 });
 
 await runFamily('object-keys');
