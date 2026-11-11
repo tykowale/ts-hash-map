@@ -184,6 +184,7 @@ npm run bench -- --family object-keys         # one scenario family
 npm run bench:smoke                           # quick check that every benchmark runs and verifies
 npm run bench:branches -- --base origin/v2    # compare this checkout against another branch
 npm run bench:memory                          # retained bytes per entry
+npm run bench:profile -- --workload user-record --n 1000 --op get-hit  # CPU profile + flame graph
 ```
 
 See [bench/README.md](bench/README.md) for the methodology, how to read the output and how to compare runs.

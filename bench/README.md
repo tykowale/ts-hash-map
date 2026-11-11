@@ -15,6 +15,10 @@ npm run bench -- --dist                         # benchmark the built dist/index
 npm run bench:compare -- base.json head.json    # compare two result files
 npm run bench:branches -- --base origin/v2             # benchmark this checkout against another branch
 npm run bench:memory                            # retained heap per entry (separate processes)
+npm run bench -- --preset hill                  # the fixed hill-climbing subset (lib/presets.ts)
+npm run bench:branches -- --base HEAD --preset hill --summary  # one accept/reject line
+npm run bench:ratios -- bench/results/latest.json  # library rows, worst HashMap/baseline first
+npm run bench:profile -- --workload user-record --n 1000 --op get-hit  # CPU profile + flame graph
 ```
 
 Other flags: `--time <ms>` sets the minimum measured CPU time per case (default 250).
@@ -24,22 +28,24 @@ You can also run one family file directly:
 
 ## Layout
 
-| Path                         | What it does                                                                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `run.ts`                     | Runs each family file in its **own Node process** and merges their JSON.                                                                             |
-| `scenarios/int-keys.ts`      | Small ints (they hash to themselves), sparse int32s, floats (float hash path).                                                                       |
-| `scenarios/string-keys.ts`   | 8-char strings, UUIDs, 100-char strings. Hashing cost grows with length.                                                                             |
-| `scenarios/object-keys.ts`   | Flat 5-field records, Dates, a custom `hashFn`/`equalsFn` pair.                                                                                      |
-| `scenarios/array-keys.ts`    | `[x, y]` tuples.                                                                                                                                     |
-| `scenarios/nested-keys.ts`   | Depth-3 objects with an array inside.                                                                                                                |
-| `scenarios/mixed-keys.ts`    | One map holding ints, strings, records, tuples and Dates together.                                                                                   |
-| `scenarios/iteration.ts`     | `for..of`, `keys()`/`values()`, `forEach`, `keys().toArray()`, plus iteration after deletes.                                                         |
-| `scenarios/construction.ts`  | `new HashMap(entries)`, clear + refill, a loadFactor sweep, growing from capacity 1, a single resize.                                                |
-| `scenarios/adversarial.ts`   | Hash collisions built from this library's own hash function.                                                                                         |
-| `scenarios/hash-equals.ts`   | `getHashCode` and `isEqual` on their own, for each key shape.                                                                                        |
-| `memory.ts`                  | Retained bytes per entry.                                                                                                                            |
-| `compare.ts` / `branches.ts` | Compare results, or compare branches.                                                                                                                |
-| `lib/`                       | Seeded key generators (`keys.ts`), the mitata wrapper (`harness.ts`), the op matrix (`scenarios.ts`), statistics (`stats.ts`), output (`report.ts`). |
+| Path                         | What it does                                                                                                                                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run.ts`                     | Runs each family file in its **own Node process** and merges their JSON.                                                                                                           |
+| `scenarios/int-keys.ts`      | Small ints (they hash to themselves), sparse int32s, floats (float hash path).                                                                                                     |
+| `scenarios/string-keys.ts`   | 8-char strings, UUIDs, 100-char strings. Hashing cost grows with length.                                                                                                           |
+| `scenarios/object-keys.ts`   | Flat 5-field records, Dates, a custom `hashFn`/`equalsFn` pair.                                                                                                                    |
+| `scenarios/array-keys.ts`    | `[x, y]` tuples.                                                                                                                                                                   |
+| `scenarios/nested-keys.ts`   | Depth-3 objects with an array inside.                                                                                                                                              |
+| `scenarios/mixed-keys.ts`    | One map holding ints, strings, records, tuples and Dates together.                                                                                                                 |
+| `scenarios/iteration.ts`     | `for..of`, `keys()`/`values()`, `forEach`, `keys().toArray()`, plus iteration after deletes.                                                                                       |
+| `scenarios/construction.ts`  | `new HashMap(entries)`, clear + refill, a loadFactor sweep, growing from capacity 1, a single resize.                                                                              |
+| `scenarios/adversarial.ts`   | Hash collisions built from this library's own hash function.                                                                                                                       |
+| `scenarios/hash-equals.ts`   | `getHashCode` and `isEqual` on their own, for each key shape.                                                                                                                      |
+| `memory.ts`                  | Retained bytes per entry.                                                                                                                                                          |
+| `compare.ts` / `branches.ts` | Compare results, or compare branches.                                                                                                                                              |
+| `ratios.ts`                  | Ranks library rows of a result file by HashMap/baseline ratio, worst first.                                                                                                        |
+| `profile/`                   | CPU profiler: HashMap-only workloads (`workloads.ts`), the profiled process (`driver.ts`), the profile reader (`cpuprofile.ts`), the CLI (`run.ts`).                               |
+| `lib/`                       | Seeded key generators (`keys.ts`), the mitata wrapper (`harness.ts`), the op matrix (`scenarios.ts`), statistics (`stats.ts`), output (`report.ts`), named subsets (`presets.ts`). |
 
 ## Methodology
 
@@ -191,16 +197,20 @@ npm run bench:branches -- --base origin/v2 --runs 3 --family int-keys,object-key
    each run in new processes. Both sides use the same benchmark code, so a change to the
    benchmarks can't show up as a library change. Alternating spreads thermal and background drift
    evenly between the two sides.
-3. Calls `compare.ts`, which merges each side's samples per case and prints the head/base ratio of
-   medians with a bootstrap 95% CI (2000 resamples). A case is `SLOWER` or `faster` only when the
-   whole CI is beyond ±5% (`--threshold`). Cases where either side has an RME above 5% are marked
-   `noisy` and not judged. That CI covers noise _within_ runs, not variation between processes
-   (CPU clocks, JIT decisions, memory layout), and that drift moves every row of a run, the
-   native `Map` rows included. So:
+3. Calls `compare.ts`, which compares the two sides run by run. Separate processes drift (CPU
+   clocks, JIT decisions, memory layout), and that drift moves every row of a run, the native
+   `Map` rows included. A case is `SLOWER` or `faster` only when the whole 95% CI of its change
+   is beyond ±5% (`--threshold`). Cases where either side has an RME above 5% are marked `noisy`
+   and not judged. So:
    - A row with an in-process baseline (HashMap vs Map) is judged on its **HashMap/baseline
-     ratio**: the raw CI is divided by how far the baseline moved. With 2+ runs per side, every
-     head run's ratio must also be beyond every base run's ratio, otherwise it is `overlap`. The
-     row shows both ratios, for example `vs Map: 0.81x -> 0.95x`.
+     ratio**. Each side's value is the geometric mean over its runs of
+     median(row) / median(baseline), both from the same process, and the change is head / base.
+     The CI is a **joint two-level bootstrap** (2000 resamples, `lib/stats.ts`): runs are
+     resampled, then within each drawn run the row's samples and its baseline's samples are
+     resampled together, and the ratio of ratios is taken per replicate. The interval therefore
+     includes the baseline's own noise and the spread between processes. With 2+ runs per side,
+     every head run's ratio must also be beyond every base run's ratio, otherwise it is
+     `overlap`. The row shows both ratios, for example `vs Map: 0.81x -> 0.95x`.
    - Baseline rows (native `Map`, stringify) never get a `SLOWER`/`faster` verdict, because that
      code is the same on both branches. A baseline that moved beyond the threshold is printed as
      `drift`, and so is every row judged against it: re-run, or add more alternations.
@@ -214,6 +224,36 @@ code on both sides, or two `--out` runs of the same checkout). Any
 machine has. If an A/A run flags cases, raise `--threshold` above that level before trusting an
 A/B result.
 
+**`--summary`** (on `bench:compare` and `bench:branches`) adds one objective for hill climbing:
+the geometric mean over every library row with a baseline of the per-row change in
+HashMap/baseline ratio (head vs base), with a bootstrap 95% CI, the worst single row, and a
+verdict line:
+
+- `FAIL`: the geomean CI lies entirely above 0, or some row is `SLOWER` (runs agree) by more than
+  `--max-regression` (default 3%).
+- `PASS`: not `FAIL`, and the geomean improved by at least `--accept` (default 2%) with its CI
+  entirely below 0.
+- `INCONCLUSIVE`: otherwise. Re-run with more `--runs`; don't accept on it.
+
+### Hill climbing
+
+`--preset hill` (`lib/presets.ts`) is a fixed subset of about 25 groups across key types, with
+`--time 150`, sized for a 1-2 minute screen. It sets the families, the filter and the time (an
+explicit `--time` still wins) and cannot be combined with `--family`/`--filter`. Only compare a
+preset run with another run of the same preset: JIT feedback carries over between groups inside
+a family process, so a subset is not comparable with a full run. To grow the subset, append a
+`family/group` regex to the preset's `groups`; its family is added automatically.
+
+```bash
+npm run bench:branches -- --base HEAD --runs 3 --preset hill         # A/A once: calibrate noise
+npm run bench:profile -- --workload int --n 1000 --op get-hit --no-inline  # 1. find the hot frame
+npm run bench -- --preset hill --out bench/results/try.json          # 2. quick screen
+npm run bench:branches -- --base HEAD --runs 3 --threshold 2 --preset hill --summary  # 3. confirm
+```
+
+Accept a change on `PASS` (plus the target row `faster` with runs agreeing, and `npm test`
+passing), and re-profile the workload to check the frame shrank.
+
 To do it by hand, run `npm run bench -- --root ../other-checkout --out base.json` and
 `npm run bench -- --out head.json`, then `npm run bench:compare -- base.json head.json`. Pass
 `--base a.json,b.json --head c.json,d.json` to merge several runs per side.
@@ -226,10 +266,50 @@ Tips for numbers you can trust:
 - Record the Node version (the JSON does this). V8 upgrades move the numbers, so only compare runs
   made on the same Node version.
 
+## Profiling
+
+`bench:profile` CPU-profiles HashMap alone (no native baselines, no mitata) on the same keys the
+scenarios use: workloads are named after the scenario labels (`int`, `uuid-fresh`, `user-record`,
+`tuple`, `mixed`, …), built with the same `lib/keys.ts` generators and seeds, and ops reuse the
+scenario op names (`get-hit`, `get-miss`, `set-fresh`, `churn`, `delete-all`, `clear`,
+`for-of`, …). `--list` prints them all.
+
+```bash
+npm run bench:profile -- --workload user-record --n 1000 --op get-hit
+npm run bench:profile -- --workload tuple --n 1000 --op churn --seconds 5 --no-inline
+npm run bench:profile -- --workload int --n 100000 --op get-hit --dist        # the built dist/
+npm run bench:profile -- --matrix --workloads int,user-record --ops get-hit,churn
+npm run bench:profile:smoke                                                   # what CI runs
+```
+
+Each run is its own `node --cpu-prof` process (sampling every 250 µs, `--interval`). Like a bench
+case, a workload is split into untimed setup and a timed loop, and its checksum is verified
+before and after timing. The timed loop runs inside a function named `TIMED_ROOT` and per-call
+setup inside `UNTIMED_SETUP`, so the reader keeps only timed work (plus GC and `(program)`
+samples between the first and last timed sample). It writes to `bench/results/profiles/`
+(gitignored):
+
+- `<workload>_<n>_<op>.cpuprofile`: open it in Chrome DevTools or speedscope.
+- `<workload>_<n>_<op>.txt`: ns/op, GC share, and the top self-time and total-time frames
+  (`--top`, default 25), with source lines from this repo's `.ts` files.
+- `<workload>_<n>_<op>.svg`: a flame graph of the timed work; hover a box for its share.
+
+`--no-inline` runs with `--no-turbo-inlining`, so hot callees keep their own frames (slower
+overall, but self time lands on the function that owns it). `--trace-deopt` also saves V8's
+opt/deopt log, `--node-flag` passes any other flag, and `--root <dir>` profiles another
+checkout. `--matrix` profiles workloads x scenario sizes x ops (default: the core ops everywhere,
+plus iteration and construction ops on `int` and `user-record`; `--workloads`, `--ops`,
+`--sizes` narrow it) into a dated folder with `summary.md` and `results.jsonl`.
+
+`bench:ratios` ranks the library rows of a result file by HashMap/baseline ratio, worst first,
+as a Markdown table (`--filter`, `--top`; `--all` includes adversarial groups whose baseline is
+HashMap itself). It is a quick way to pick hill-climbing targets.
+
 ## CI
 
-CI runs `npm run bench:smoke` on Node 22 and 24 and uploads the JSON as an artifact for
-reference. The job fails when a case throws, fails its result check, or looks optimized out. It
+CI runs `npm run bench:smoke` and `npm run bench:profile:smoke` on Node 22 and 24 and uploads the
+smoke JSON as an artifact for reference. The profile smoke verifies every workload x op at tiny
+sizes in-process, then profiles two short runs end to end. The job fails when a case throws, fails its result check, or looks optimized out. It
 **never** fails because of timings. GitHub-hosted runners are shared VMs with no guaranteed CPU,
 and wall-clock numbers there are too noisy to gate on. If gating is ever wanted, the realistic
 option is CodSpeed's CPU simulation mode, which counts instructions deterministically and is free
