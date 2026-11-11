@@ -2,10 +2,15 @@
  * Iteration over n entries. HashMap walks a doubly linked insertion-order list; entries() and
  * for..of also allocate a [k, v] tuple per step, keys()/values() allocate an iterator result.
  * The "after deletes" groups iterate a map that grew to 2n and then lost half its entries.
+ *
+ * The `user-record` and `tuple` groups iterate maps with structural keys. Today HashMap stores the
+ * key in its node, so the walk is the same as for ints; a design that keeps keys elsewhere (D1 in
+ * the perf plan) would have to translate each one back, and these rows would show it. The
+ * baseline is a native Map holding the same key objects.
  */
 import { PRIMITIVE_SIZES, sizes } from '../lib/config.ts';
 import { group, runFamily, staticCase } from '../lib/harness.ts';
-import { rngFor, shuffle, smallInts } from '../lib/keys.ts';
+import { rngFor, shuffle, smallInts, tuples, users, type UserKey } from '../lib/keys.ts';
 import { HashMap } from '../lib/target.ts';
 
 type Pair = { hash: HashMap<number, number>; map: Map<number, number>; expected: number };
@@ -141,5 +146,184 @@ for (const deleteHalf of [false, true]) {
     }
   }
 }
+
+// ---- structural keys: the same walk, with object keys (after the int groups, so their feedback
+// stays monomorphic) ----
+
+type Tuple = [number, number];
+
+interface StructuralKind<K> {
+  label: string;
+  generate: (n: number) => K[];
+  /** A number read off the key, so the checksum touches every key. */
+  weight: (key: K) => number;
+}
+
+const USER: StructuralKind<UserKey> = {
+  label: 'user-record',
+  generate: (n) => users(n, rngFor(`iteration:user-record:${n}`)).keys,
+  weight: (u) => u.id,
+};
+const TUPLE: StructuralKind<Tuple> = {
+  label: 'tuple',
+  generate: (n) => tuples(n, rngFor(`iteration:tuple:${n}`)).keys,
+  weight: (t) => t[0] + t[1],
+};
+
+// Written out per kind and implementation (no shared adapter), like the int bodies above.
+function userEntriesHash(m: HashMap<UserKey, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const [k, v] of m) {
+      s += k.id + v;
+    }
+    return s;
+  };
+}
+function userEntriesMap(m: Map<UserKey, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const [k, v] of m) {
+      s += k.id + v;
+    }
+    return s;
+  };
+}
+function userKeysHash(m: HashMap<UserKey, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const k of m.keys()) {
+      s += k.id;
+    }
+    return s;
+  };
+}
+function userKeysMap(m: Map<UserKey, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const k of m.keys()) {
+      s += k.id;
+    }
+    return s;
+  };
+}
+function tupleEntriesHash(m: HashMap<Tuple, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const [k, v] of m) {
+      s += k[0] + k[1] + v;
+    }
+    return s;
+  };
+}
+function tupleEntriesMap(m: Map<Tuple, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const [k, v] of m) {
+      s += k[0] + k[1] + v;
+    }
+    return s;
+  };
+}
+function tupleKeysHash(m: HashMap<Tuple, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const k of m.keys()) {
+      s += k[0] + k[1];
+    }
+    return s;
+  };
+}
+function tupleKeysMap(m: Map<Tuple, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const k of m.keys()) {
+      s += k[0] + k[1];
+    }
+    return s;
+  };
+}
+function valuesHash(m: HashMap<unknown, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const v of m.values()) {
+      s += v;
+    }
+    return s;
+  };
+}
+function valuesMap(m: Map<unknown, number>): () => number {
+  return () => {
+    let s = 0;
+    for (const v of m.values()) {
+      s += v;
+    }
+    return s;
+  };
+}
+
+type Bodies<K> = {
+  name: string;
+  hash: (m: HashMap<K, number>) => () => number;
+  map: (m: Map<K, number>) => () => number;
+  expected: (keys: K[], weight: (key: K) => number) => number;
+};
+
+const sumValues = (n: number): number => (n * (n - 1)) / 2;
+const sumWeights = <K>(keys: K[], weight: (key: K) => number): number =>
+  keys.reduce((a, k) => a + weight(k), 0);
+
+function structuralGroups<K>(kind: StructuralKind<K>, bodies: Bodies<K>[]): void {
+  for (const n of sizes([1_000])) {
+    for (const b of bodies) {
+      const label = `${kind.label} ${b.name}`;
+      group(`${label} n=${n}`, { n, series: label }, () => {
+        const keys = kind.generate(n);
+        const hash = new HashMap<K, number>();
+        const map = new Map<K, number>();
+        keys.forEach((k, i) => {
+          hash.set(k, i);
+          map.set(k, i);
+        });
+        return {
+          expect: b.expected(keys, kind.weight),
+          info: 'op = one entry visited; values are 0..n-1',
+          cases: [
+            staticCase('Map (same key objects)', n, b.map(map), { baseline: true }),
+            staticCase('HashMap', n, b.hash(hash)),
+          ],
+        };
+      });
+    }
+  }
+}
+
+const valuesBodies = {
+  name: 'values()',
+  hash: valuesHash,
+  map: valuesMap,
+  expected: (keys: unknown[]) => sumValues(keys.length),
+};
+
+structuralGroups(USER, [
+  {
+    name: 'for..of entries',
+    hash: userEntriesHash,
+    map: userEntriesMap,
+    expected: (keys, w) => sumWeights(keys, w) + sumValues(keys.length),
+  },
+  { name: 'keys()', hash: userKeysHash, map: userKeysMap, expected: sumWeights },
+  valuesBodies,
+]);
+structuralGroups(TUPLE, [
+  {
+    name: 'for..of entries',
+    hash: tupleEntriesHash,
+    map: tupleEntriesMap,
+    expected: (keys, w) => sumWeights(keys, w) + sumValues(keys.length),
+  },
+  { name: 'keys()', hash: tupleKeysHash, map: tupleKeysMap, expected: sumWeights },
+  valuesBodies,
+]);
 
 await runFamily('iteration');
