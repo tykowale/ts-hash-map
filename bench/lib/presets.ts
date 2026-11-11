@@ -20,7 +20,7 @@ export interface Preset {
 export const PRESETS: Record<string, Preset> = {
   hill: {
     description:
-      'about 25 groups across key types, sized for a 1-2 minute screen and a 3-run bench:branches',
+      '38 groups across key types, sized for a 30-40 s screen and a 3-run bench:branches',
     timeMs: 150,
     groups: [
       'int-keys/int (get-hit|get-miss|set-fresh|churn) n=1000',
@@ -36,6 +36,13 @@ export const PRESETS: Record<string, Preset> = {
       'iteration/for\\.\\.of entries n=1000',
       'construction/from entries n=10',
       'construction/single resize.*',
+      'int-keys/int clear n=1000',
+      'int-keys/strided-int get-hit n=100000',
+      'object-keys/date get-hit n=1000',
+      'string-keys/string-100 get-hit n=1000',
+      'small-maps/(int|user-record) lifecycle n=(4|16)',
+      'polluted/(int|user-record) get-hit n=1000',
+      'read-write/(int|tuple) (upsert zipf|get90-set10) n=1000',
     ],
   },
 };
